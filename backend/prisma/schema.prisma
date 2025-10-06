@@ -1,0 +1,282 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER MANAGEMENT & AUTHENTICATION
+// ============================================
+
+model User {
+  id                String   @id @default(uuid())
+  email             String   @unique
+  password          String
+  firstName         String
+  lastName          String
+  phone             String?
+  status            String   @default("active") // active, inactive, suspended
+  isSuperAdmin      Boolean  @default(false)
+  organizationId    String?
+  organization      Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  roleId            String?
+  role              Role? @relation(fields: [roleId], references: [id])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  lastLoginAt       DateTime?
+
+  // Relations
+  moduleLicensesActivated ModuleLicense[] @relation("ActivatedBy")
+  moduleAccessLogs        ModuleAccessLog[]
+  moduleRequestsRequested ModuleRequest[] @relation("ModuleRequestedBy")
+  moduleRequestsReviewed  ModuleRequest[] @relation("ModuleReviewedBy")
+  createdAssets           Asset[] @relation("CreatedBy")
+  assignedWorkOrders      WorkOrder[] @relation("AssignedTo")
+  createdWorkOrders       WorkOrder[] @relation("CreatedBy")
+
+  @@index([organizationId])
+  @@index([email])
+}
+
+model Role {
+  id             String   @id @default(uuid())
+  name           String
+  description    String?
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  permissions    String   // JSON array of permission strings
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  users          User[]
+
+  @@index([organizationId])
+}
+
+// ============================================
+// ORGANIZATION & MULTI-TENANCY
+// ============================================
+
+model Organization {
+  id                  String   @id @default(uuid())
+  name                String
+  email               String?
+  phone               String?
+  address             String?
+  city                String?
+  country             String   @default("Philippines")
+  industry            String?  // manufacturing, healthcare, facilities, fleet, hospitality
+  tier                String   @default("starter") // starter, professional, enterprise, enterprise_plus
+  status              String   @default("active") // active, trial, suspended, expired
+  trialEndsAt         DateTime?
+  subscriptionEndsAt  DateTime?
+  maxUsers            Int      @default(10)
+  settings            String?  // JSON settings
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  users               User[]
+  roles               Role[]
+  moduleLicenses      ModuleLicense[]
+  moduleUsageTracking ModuleUsageTracking[]
+  moduleAccessLogs    ModuleAccessLog[]
+  moduleRequests      ModuleRequest[]
+  assets              Asset[]
+  workOrders          WorkOrder[]
+  locations           Location[]
+
+  @@index([tier])
+  @@index([status])
+}
+
+// ============================================
+// MODULE LICENSING SYSTEM
+// ============================================
+
+model ModuleLicense {
+  id             String    @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  moduleCode     String    // preventive_maintenance, inventory_management, etc.
+  tierLevel      String?   // standard, advanced, premium
+  status         String    @default("active") // active, inactive, trial, expired
+  activatedAt    DateTime  @default(now())
+  expiresAt      DateTime?
+  activatedById  String?
+  activatedBy    User?     @relation("ActivatedBy", fields: [activatedById], references: [id])
+  licenseKey     String?
+  maxUsers       Int?
+  usageLimits    String?   // JSON: {maxWorkOrders: 1000, maxAssets: 500}
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([organizationId])
+  @@index([moduleCode])
+  @@index([status])
+  @@unique([organizationId, moduleCode])
+}
+
+model ModuleUsageTracking {
+  id             String   @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  moduleCode     String
+  date           DateTime @default(now())
+  activeUsers    Int      @default(0)
+  transactions   Int      @default(0)
+  apiCalls       Int      @default(0)
+  storageUsed    Int      @default(0) // in bytes
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, date])
+  @@index([moduleCode])
+}
+
+model ModuleAccessLog {
+  id             String   @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moduleCode     String
+  action         String   // activated, deactivated, accessed, denied
+  ipAddress      String?
+  userAgent      String?
+  timestamp      DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([moduleCode])
+}
+
+model ModuleRequest {
+  id             String   @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requestedById  String
+  requestedBy    User     @relation("ModuleRequestedBy", fields: [requestedById], references: [id])
+  moduleCode     String
+  requestType    String   // trial, purchase, upgrade
+  justification  String?
+  expectedUsage  String?
+  status         String   @default("pending") // pending, approved, rejected
+  reviewedById   String?
+  reviewedBy     User?    @relation("ModuleReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt     DateTime?
+  reviewNotes    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([requestedById])
+  @@index([status])
+}
+
+// ============================================
+// CORE CMMS: ASSET MANAGEMENT
+// ============================================
+
+model Asset {
+  id                String    @id @default(uuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assetNumber       String    // User-friendly asset number (e.g., "PUMP-001")
+  name              String
+  description       String?
+  category          String?   // Equipment, Facility, Vehicle, Tool
+  manufacturer      String?
+  model             String?
+  serialNumber      String?
+  purchaseDate      DateTime?
+  purchaseCost      Float?
+  warrantyExpiresAt DateTime?
+  status            String    @default("operational") // operational, down, maintenance, retired
+  criticality       String?   // low, medium, high, critical
+  locationId        String?
+  location          Location? @relation(fields: [locationId], references: [id])
+  parentAssetId     String?   // For asset hierarchy (Advanced module)
+  parentAsset       Asset?    @relation("AssetHierarchy", fields: [parentAssetId], references: [id])
+  childAssets       Asset[]   @relation("AssetHierarchy")
+  imageUrl          String?
+  customFields      String?   // JSON for industry-specific fields
+  createdById       String
+  createdBy         User      @relation("CreatedBy", fields: [createdById], references: [id])
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  workOrders        WorkOrder[]
+
+  @@index([organizationId])
+  @@index([assetNumber])
+  @@index([status])
+  @@unique([organizationId, assetNumber])
+}
+
+model Location {
+  id             String   @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  type           String?  // Building, Floor, Room, Site
+  parentId       String?
+  address        String?
+  city           String?
+  latitude       Float?
+  longitude      Float?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  assets         Asset[]
+
+  @@index([organizationId])
+}
+
+// ============================================
+// CORE CMMS: WORK ORDER MANAGEMENT
+// ============================================
+
+model WorkOrder {
+  id             String    @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workOrderNumber String   // User-friendly WO number (e.g., "WO-2025-001")
+  title          String
+  description    String?
+  type           String    @default("corrective") // corrective, preventive, inspection, project
+  priority       String    @default("medium") // low, medium, high, urgent
+  status         String    @default("open") // open, assigned, in_progress, on_hold, completed, closed
+  assetId        String?
+  asset          Asset?    @relation(fields: [assetId], references: [id])
+  assignedToId   String?
+  assignedTo     User?     @relation("AssignedTo", fields: [assignedToId], references: [id])
+  createdById    String
+  createdBy      User      @relation("CreatedBy", fields: [createdById], references: [id])
+  scheduledStart DateTime?
+  scheduledEnd   DateTime?
+  actualStart    DateTime?
+  actualEnd      DateTime?
+  estimatedHours Float?
+  actualHours    Float?
+  laborCost      Float?
+  partsCost      Float?
+  totalCost      Float?
+  notes          String?
+  customFields   String?   // JSON for industry-specific fields
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  completedAt    DateTime?
+
+  @@index([organizationId])
+  @@index([workOrderNumber])
+  @@index([status])
+  @@index([assignedToId])
+  @@unique([organizationId, workOrderNumber])
+}

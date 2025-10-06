@@ -1,0 +1,23 @@
+{
+  "name": "cmms",
+  "version": "1.0.0",
+  "description": "CMMS - Computerized Maintenance Management System",
+  "scripts": {
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "cd backend && npm run start:dev",
+    "start:frontend": "cd frontend && npm run dev",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "dev": "concurrently -n \"backend,frontend\" -c \"bgBlue,bgMagenta\" \"npm run start:backend\" \"npm run start:frontend\"",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "test:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.1",
+    "@types/node": "^24.6.2",
+    "concurrently": "^8.2.2"
+  },
+  "author": "",
+  "license": "ISC"
+}
