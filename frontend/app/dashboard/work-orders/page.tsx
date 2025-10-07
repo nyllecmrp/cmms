@@ -13,7 +13,7 @@ interface WorkOrder {
   asset?: {
     id: string;
     name: string;
-    assetTag: string;
+    assetNumber: string;
   };
   assignedTo?: {
     id: string;
@@ -309,7 +309,7 @@ export default function WorkOrdersPage() {
                       <span className="text-sm text-gray-600">-</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-600">{wo.asset?.assetTag || '-'}</span>
+                      <span className="text-sm text-gray-600">{wo.asset?.assetNumber || '-'}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(wo.priority)}`}>

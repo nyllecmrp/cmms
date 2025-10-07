@@ -4,6 +4,7 @@ import api from '@/lib/api';
 
 interface WorkOrder {
   id?: string;
+  workOrderNumber: string;
   title: string;
   description?: string;
   priority: string;
@@ -21,6 +22,7 @@ interface WorkOrderFormProps {
 
 export default function WorkOrderForm({ isOpen, onClose, onSuccess, workOrder }: WorkOrderFormProps) {
   const [formData, setFormData] = useState({
+    workOrderNumber: '',
     title: '',
     description: '',
     priority: 'medium',
@@ -53,6 +55,7 @@ export default function WorkOrderForm({ isOpen, onClose, onSuccess, workOrder }:
 
     if (workOrder) {
       setFormData({
+        workOrderNumber: workOrder.workOrderNumber || '',
         title: workOrder.title || '',
         description: workOrder.description || '',
         priority: workOrder.priority || 'medium',
@@ -62,6 +65,7 @@ export default function WorkOrderForm({ isOpen, onClose, onSuccess, workOrder }:
       });
     } else {
       setFormData({
+        workOrderNumber: '',
         title: '',
         description: '',
         priority: 'medium',
@@ -114,6 +118,20 @@ export default function WorkOrderForm({ isOpen, onClose, onSuccess, workOrder }:
             {error}
           </div>
         )}
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Work Order Number *
+          </label>
+          <input
+            type="text"
+            value={formData.workOrderNumber}
+            onChange={(e) => setFormData({ ...formData, workOrderNumber: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+            placeholder="e.g., WO-2025-001"
+            required
+          />
+        </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">

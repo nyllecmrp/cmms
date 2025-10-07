@@ -7,7 +7,7 @@ import AssetForm from '@/components/AssetForm';
 
 interface Asset {
   id: string;
-  assetTag: string;
+  assetNumber: string;
   name: string;
   category: string;
   status: string;
@@ -48,7 +48,7 @@ export default function AssetsPage() {
         setAssets([
           {
             id: '1',
-            assetTag: 'PUMP-001',
+            assetNumber: 'PUMP-001',
             name: 'Hydraulic Pump Unit A',
             category: 'Equipment',
             status: 'operational',
@@ -56,7 +56,7 @@ export default function AssetsPage() {
           },
           {
             id: '2',
-            assetTag: 'MED-CT-001',
+            assetNumber: 'MED-CT-001',
             name: 'CT Scanner - Radiology',
             category: 'Equipment',
             status: 'operational',
@@ -71,7 +71,7 @@ export default function AssetsPage() {
 
   const filteredAssets = assets.filter((asset) =>
     asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    asset.assetTag.toLowerCase().includes(searchTerm.toLowerCase())
+    asset.assetNumber.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getStatusColor = (status: string) => {
@@ -216,7 +216,7 @@ export default function AssetsPage() {
                 {filteredAssets.map((asset) => (
                   <tr key={asset.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-medium text-blue-600">{asset.assetTag}</span>
+                      <span className="text-sm font-medium text-blue-600">{asset.assetNumber}</span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-medium text-gray-900">{asset.name}</div>
