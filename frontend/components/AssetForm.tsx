@@ -5,7 +5,7 @@ import api from '@/lib/api';
 
 interface Asset {
   id?: string;
-  assetTag: string;
+  assetNumber: string;
   name: string;
   category: string;
   location?: string;
@@ -25,7 +25,7 @@ interface AssetFormProps {
 
 export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFormProps) {
   const [formData, setFormData] = useState({
-    assetTag: '',
+    assetNumber: '',
     name: '',
     category: 'Equipment',
     location: '',
@@ -41,7 +41,7 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
   useEffect(() => {
     if (asset) {
       setFormData({
-        assetTag: asset.assetTag || '',
+        assetNumber: asset.assetNumber || '',
         name: asset.name || '',
         category: asset.category || 'Equipment',
         location: asset.location || '',
@@ -52,7 +52,7 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
       });
     } else {
       setFormData({
-        assetTag: '',
+        assetNumber: '',
         name: '',
         category: 'Equipment',
         location: '',
@@ -122,12 +122,12 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Asset Tag *
+            Asset Number *
           </label>
           <input
             type="text"
-            value={formData.assetTag}
-            onChange={(e) => setFormData({ ...formData, assetTag: e.target.value })}
+            value={formData.assetNumber}
+            onChange={(e) => setFormData({ ...formData, assetNumber: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
             required
           />
