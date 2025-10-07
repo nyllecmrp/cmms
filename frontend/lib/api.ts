@@ -245,6 +245,7 @@ class ApiClient {
 
   async createAsset(data: {
     organizationId: string;
+    createdById: string;
     name: string;
     assetNumber: string;
     category: string;
@@ -305,6 +306,7 @@ class ApiClient {
 
   async createWorkOrder(data: {
     organizationId: string;
+    createdById: string;
     workOrderNumber: string;
     assetId?: string;
     title: string;

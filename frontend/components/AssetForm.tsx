@@ -93,6 +93,7 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
         // Create new asset
         await api.createAsset({
           organizationId,
+          createdById: user?.id || '',
           ...formData,
         });
       }

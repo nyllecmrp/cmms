@@ -88,6 +88,7 @@ export default function WorkOrderForm({ isOpen, onClose, onSuccess, workOrder }:
 
       const payload = {
         organizationId,
+        createdById: user?.id || '',
         ...formData,
         assetId: formData.assetId || undefined,
         dueDate: formData.dueDate || undefined,
