@@ -280,7 +280,7 @@ class ApiClient {
     notes?: string;
   }) {
     return this.request(`/assets/${id}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   }
@@ -334,7 +334,7 @@ class ApiClient {
     completedAt?: string;
   }) {
     return this.request(`/work-orders/${id}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   }
