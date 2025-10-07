@@ -15,7 +15,7 @@ export class AppController {
     return this.appService.getHello();
   }
 
-  @Post('seed')
+  @Get('seed')
   async seedDatabase() {
     try {
       console.log('🌱 Starting seed...');
