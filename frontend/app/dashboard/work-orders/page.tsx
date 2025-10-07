@@ -258,7 +258,10 @@ export default function WorkOrdersPage() {
             <div className="text-6xl mb-4">📋</div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No work orders found</h3>
             <p className="text-gray-600 mb-4">Create your first work order to get started.</p>
-            <button className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+            <button 
+              onClick={() => setIsFormOpen(true)}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            >
               + Create Work Order
             </button>
           </div>

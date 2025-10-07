@@ -183,7 +183,10 @@ export default function AssetsPage() {
             <div className="text-6xl mb-4">📦</div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No assets found</h3>
             <p className="text-gray-600 mb-4">Start by adding your first asset to the system.</p>
-            <button className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+            <button 
+              onClick={handleAddAsset}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            >
               + Add Your First Asset
             </button>
           </div>
