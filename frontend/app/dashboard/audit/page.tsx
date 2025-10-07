@@ -399,7 +399,10 @@ export default function AuditPage() {
           <p className="text-gray-600 mb-6">
             Visual audit schedule and planning feature
           </p>
-          <button className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+          <button 
+            onClick={() => alert('Audit calendar feature coming soon!')}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          >
             View Calendar
           </button>
         </div>

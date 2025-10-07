@@ -355,7 +355,10 @@ export default function ReportsPage() {
             <p className="text-sm text-gray-600 mb-4">
               Get regular reports delivered to your inbox automatically
             </p>
-            <button className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold">
+            <button 
+              onClick={() => alert('Email report configuration coming soon!')}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
+            >
               Configure Email Reports
             </button>
           </div>

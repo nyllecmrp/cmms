@@ -148,7 +148,10 @@ export default function MultiLocationPage() {
         {activeTab === 'transfer' && (
           <div className="p-6">
             <div className="mb-6">
-              <button className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              <button 
+                onClick={() => alert('Asset transfer request feature coming soon!')}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
                 + Request Asset Transfer
               </button>
             </div>

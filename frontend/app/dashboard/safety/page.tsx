@@ -476,7 +476,10 @@ export default function SafetyPage() {
           <p className="text-gray-600 mb-6">
             Audit scheduling and tracking feature coming soon
           </p>
-          <button className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+          <button 
+            onClick={() => alert('Audit scheduling feature coming soon!')}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          >
             Schedule New Audit
           </button>
         </div>
