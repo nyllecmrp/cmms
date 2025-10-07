@@ -6,6 +6,7 @@ import WorkOrderForm from '@/components/WorkOrderForm';
 
 interface WorkOrder {
   id: string;
+  workOrderNumber: string;
   title: string;
   description?: string;
   priority: string;
