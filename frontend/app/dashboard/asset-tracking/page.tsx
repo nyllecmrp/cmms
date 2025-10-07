@@ -147,7 +147,7 @@ export default function AssetTrackingPage() {
             ...asset,
             currentLocation: newLocation,
             lastScanned: new Date().toISOString().replace('T', ' ').substring(0, 16),
-            scannedBy: user?.name || 'Current User'
+            scannedBy: user ? `${user.firstName} ${user.lastName}` : 'Current User'
           }
         : asset
     ));

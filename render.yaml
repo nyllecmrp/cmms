@@ -5,7 +5,7 @@ services:
     runtime: node
     region: singapore
     plan: free
-    buildCommand: cd backend && npm install && npm install -D @nestjs/cli && npx prisma generate && npm run build
+    buildCommand: cd backend && npm install && npx prisma generate && npx @nestjs/cli build
     startCommand: cd backend && npx prisma migrate deploy && npm run start:prod
     envVars:
       - key: DATABASE_URL
