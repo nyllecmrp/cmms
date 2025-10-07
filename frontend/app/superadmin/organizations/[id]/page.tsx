@@ -32,7 +32,7 @@ export default function OrganizationModulesPage() {
 
         // Fetch real data from backend API
         const data = await api.getOrganizationModules(params.id as string);
-        setModules(data);
+        setModules(data as Module[]);
 
         // Set organization info based on ID
         const orgName = params.id === 'org-test-1' ? 'Acme Manufacturing' : 'Metro Hospital';
