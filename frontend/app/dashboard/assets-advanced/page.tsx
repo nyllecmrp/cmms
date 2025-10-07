@@ -269,7 +269,7 @@ export default function AssetsAdvancedPage() {
                   <div className="text-xs text-orange-600">Regular monitoring needed</div>
                 </div>
                 <div className="p-3 bg-yellow-50 rounded">
-                  <div className="text-sm text-yellow-700 font-semibold">Medium (<70)</div>
+                  <div className="text-sm text-yellow-700 font-semibold">Medium (&lt;70)</div>
                   <div className="text-xs text-yellow-600">Standard maintenance schedule</div>
                 </div>
               </div>
