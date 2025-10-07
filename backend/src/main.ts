@@ -6,7 +6,14 @@ async function bootstrap() {
 
   // Enable CORS for frontend
   app.enableCors({
-    origin: ['http://localhost:3001', 'http://localhost:3002', 'http://localhost:3003', 'http://localhost:3000'],
+    origin: [
+      'http://localhost:3001', 
+      'http://localhost:3002', 
+      'http://localhost:3003', 
+      'http://localhost:3000',
+      'https://cmms-frontend-1zzz.onrender.com',
+      /\.onrender\.com$/  // Allow all Render domains
+    ],
     credentials: true,
   });
 
