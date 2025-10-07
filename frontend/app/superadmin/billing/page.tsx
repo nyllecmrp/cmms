@@ -40,9 +40,9 @@ export default function BillingPage() {
 
       const billing: BillingRecord[] = [];
 
-      for (const org of orgs) {
+      for (const org of orgs as any[]) {
         try {
-          const modules = await api.getOrganizationModules(org.id);
+          const modules = await api.getOrganizationModules(org.id) as any[];
           const activeModules = modules.filter((m: any) => m.isActive && m.isLicensed).length;
 
           // Calculate revenue based on tier and active modules

@@ -164,7 +164,7 @@ export default function WorkRequestsPage() {
       id: String(requests.length + 1),
       requestNumber: `WR-2025-${String(requests.length + 1).padStart(3, '0')}`,
       ...formData,
-      requestedBy: user?.name || user?.email || 'Unknown User',
+      requestedBy: user ? `${user.firstName} ${user.lastName}` : 'Unknown User',
       status: 'pending',
       requestDate: new Date().toISOString().split('T')[0],
     };
@@ -189,7 +189,7 @@ export default function WorkRequestsPage() {
         ? {
             ...req,
             status: 'approved' as const,
-            reviewedBy: user?.name || 'Manager',
+            reviewedBy: user ? `${user.firstName} ${user.lastName}` : 'Manager',
             reviewDate: new Date().toISOString().split('T')[0]
           }
         : req
@@ -202,7 +202,7 @@ export default function WorkRequestsPage() {
         ? {
             ...req,
             status: 'rejected' as const,
-            reviewedBy: user?.name || 'Manager',
+            reviewedBy: user ? `${user.firstName} ${user.lastName}` : 'Manager',
             reviewDate: new Date().toISOString().split('T')[0]
           }
         : req
@@ -217,7 +217,7 @@ export default function WorkRequestsPage() {
             ...req,
             status: 'converted' as const,
             workOrderId: woNumber,
-            reviewedBy: user?.name || 'Manager',
+            reviewedBy: user ? `${user.firstName} ${user.lastName}` : 'Manager',
             reviewDate: new Date().toISOString().split('T')[0]
           }
         : req

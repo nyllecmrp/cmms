@@ -39,7 +39,7 @@ export default function ExpirationsPage() {
       const orgs = await api.getOrganizations();
       const expiringLicenses: ExpiringLicense[] = [];
 
-      for (const org of orgs) {
+      for (const org of orgs as any[]) {
         try {
           const modules = await api.getOrganizationModules(org.id);
 
