@@ -47,7 +47,7 @@ export default function WorkOrdersPage() {
 
         // Fetch real data from backend API
         const data = await api.getWorkOrders(organizationId);
-        setWorkOrders(data);
+        setWorkOrders(data as WorkOrder[]);
         setLoading(false);
       } catch (error: any) {
         console.error('Failed to fetch work orders:', error);
@@ -139,7 +139,7 @@ export default function WorkOrdersPage() {
 
       // Refresh work order list
       const data = await api.getWorkOrders(organizationId);
-      setWorkOrders(data);
+      setWorkOrders(data as WorkOrder[]);
     } catch (error: any) {
       alert(`Failed to delete work order: ${error.message}`);
     }
@@ -152,7 +152,7 @@ export default function WorkOrdersPage() {
     const organizationId = user?.organizationId || 'org-test-1';
 
     const data = await api.getWorkOrders(organizationId);
-    setWorkOrders(data);
+    setWorkOrders(data as WorkOrder[]);
   };
 
   return (

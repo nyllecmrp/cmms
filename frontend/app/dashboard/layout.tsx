@@ -26,7 +26,7 @@ export default function DashboardLayout({
       if (!user?.organizationId) return;
 
       try {
-        const modules = await api.getOrganizationModules(user.organizationId);
+        const modules = await api.getOrganizationModules(user.organizationId) as any[];
         const active = new Set(
           modules
             .filter((m: any) => m.isActive)

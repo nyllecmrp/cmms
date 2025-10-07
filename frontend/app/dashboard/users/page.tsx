@@ -35,7 +35,7 @@ export default function UsersPage() {
 
       try {
         const data = await api.getUsers(user.organizationId);
-        setUsers(data);
+        setUsers(data as any[]);
       } catch (err: any) {
         setError(err.message || 'Failed to load users');
       } finally {
@@ -63,7 +63,7 @@ export default function UsersPage() {
       // Refresh users list
       if (user?.organizationId) {
         const data = await api.getUsers(user.organizationId);
-        setUsers(data);
+        setUsers(data as any[]);
       }
 
       setIsInviteModalOpen(false);

@@ -24,10 +24,10 @@ export default function DashboardPage() {
         setLoading(true);
         
         // Fetch assets
-        const assets = await api.getAssets(user.organizationId);
+        const assets = await api.getAssets(user.organizationId) as any[];
         
         // Fetch work orders
-        const workOrders = await api.getWorkOrders(user.organizationId);
+        const workOrders = await api.getWorkOrders(user.organizationId) as any[];
         
         // Calculate stats
         const openWOs = workOrders.filter((wo: any) => 

@@ -38,7 +38,7 @@ export default function AssetsPage() {
 
         // Fetch real data from backend API
         const data = await api.getAssets(organizationId);
-        setAssets(data);
+        setAssets(data as Asset[]);
         setLoading(false);
       } catch (error: any) {
         console.error('Failed to fetch assets:', error);
@@ -107,7 +107,7 @@ export default function AssetsPage() {
 
       // Refresh asset list
       const data = await api.getAssets(organizationId);
-      setAssets(data);
+      setAssets(data as Asset[]);
     } catch (error: any) {
       alert(`Failed to delete asset: ${error.message}`);
     }
@@ -120,7 +120,7 @@ export default function AssetsPage() {
     const organizationId = user?.organizationId || 'org-test-1';
 
     const data = await api.getAssets(organizationId);
-    setAssets(data);
+    setAssets(data as Asset[]);
   };
 
   return (
