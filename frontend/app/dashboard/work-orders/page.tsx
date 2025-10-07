@@ -58,6 +58,7 @@ export default function WorkOrdersPage() {
         setWorkOrders([
           {
             id: '1',
+            workOrderNumber: 'WO-2025-001',
             title: 'Monthly PM - Hydraulic Pump',
             priority: 'medium',
             status: 'open',
@@ -66,6 +67,7 @@ export default function WorkOrdersPage() {
           },
           {
             id: '2',
+            workOrderNumber: 'WO-2025-002',
             title: 'CT Scanner Calibration',
             priority: 'high',
             status: 'open',
