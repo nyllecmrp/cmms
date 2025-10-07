@@ -28,29 +28,36 @@ export default function WorkOrderForm({ isOpen, onClose, onSuccess, workOrder }:
     priority: 'medium',
     status: 'open',
     assetId: '',
+    assignedToId: '',
     dueDate: '',
   });
   const [assets, setAssets] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (isOpen) {
-      // Fetch assets for dropdown
-      const fetchAssets = async () => {
+      // Fetch assets and users for dropdowns
+      const fetchData = async () => {
         try {
           const userData = localStorage.getItem('user');
           const user = userData ? JSON.parse(userData) : null;
           const organizationId = user?.organizationId || 'org-test-1';
 
-          const data = await api.getAssets(organizationId);
-          setAssets(data as any[]);
+          // Fetch assets
+          const assetsData = await api.getAssets(organizationId);
+          setAssets(assetsData as any[]);
+
+          // Fetch users
+          const usersData = await api.getUsers(organizationId);
+          setUsers(usersData as any[]);
         } catch (err) {
-          console.error('Failed to fetch assets:', err);
+          console.error('Failed to fetch data:', err);
         }
       };
 
-      fetchAssets();
+      fetchData();
     }
 
     if (workOrder) {
@@ -61,6 +68,7 @@ export default function WorkOrderForm({ isOpen, onClose, onSuccess, workOrder }:
         priority: workOrder.priority || 'medium',
         status: workOrder.status || 'open',
         assetId: workOrder.assetId || '',
+        assignedToId: '',
         dueDate: workOrder.dueDate ? workOrder.dueDate.split('T')[0] : '',
       });
     } else {
@@ -71,6 +79,7 @@ export default function WorkOrderForm({ isOpen, onClose, onSuccess, workOrder }:
         priority: 'medium',
         status: 'open',
         assetId: '',
+        assignedToId: '',
         dueDate: '',
       });
     }
@@ -91,6 +100,7 @@ export default function WorkOrderForm({ isOpen, onClose, onSuccess, workOrder }:
         createdById: user?.id || '',
         ...formData,
         assetId: formData.assetId || undefined,
+        assignedToId: formData.assignedToId || undefined,
         dueDate: formData.dueDate || undefined,
       };
 
@@ -208,7 +218,25 @@ export default function WorkOrderForm({ isOpen, onClose, onSuccess, workOrder }:
             <option value="">None</option>
             {assets.map((asset) => (
               <option key={asset.id} value={asset.id}>
-                {asset.assetTag} - {asset.name}
+                {asset.assetNumber} - {asset.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Assign To
+          </label>
+          <select
+            value={formData.assignedToId}
+            onChange={(e) => setFormData({ ...formData, assignedToId: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+          >
+            <option value="">Unassigned</option>
+            {users.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.firstName} {user.lastName} ({user.email})
               </option>
             ))}
           </select>
