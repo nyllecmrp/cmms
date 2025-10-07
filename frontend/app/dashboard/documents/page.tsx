@@ -169,7 +169,7 @@ export default function DocumentsPage() {
       category: uploadFormData.category,
       type: uploadedFiles[0].name.split('.').pop()?.toUpperCase() || 'FILE',
       size: `${(uploadedFiles[0].size / (1024 * 1024)).toFixed(1)} MB`,
-      uploadedBy: user?.name || 'Current User',
+      uploadedBy: user ? `${user.firstName} ${user.lastName}` : 'Current User',
       uploadedAt: new Date().toISOString().split('T')[0],
       assetId: uploadFormData.assetId || undefined,
       tags: uploadFormData.tags.split(',').map((tag) => tag.trim()),
