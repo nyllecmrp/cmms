@@ -8,7 +8,7 @@ interface Asset {
   assetTag: string;
   name: string;
   category: string;
-  location: string;
+  location?: string;
   status: string;
   manufacturer?: string;
   model?: string;
