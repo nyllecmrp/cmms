@@ -91,10 +91,12 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
         });
       } else {
         // Create new asset
+        const { location, ...assetData } = formData;
         await api.createAsset({
           organizationId,
           createdById: user?.id || '',
-          ...formData,
+          ...assetData,
+          // locationId can be added later when location management is implemented
         });
       }
 

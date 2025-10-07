@@ -249,13 +249,13 @@ class ApiClient {
     name: string;
     assetNumber: string;
     category: string;
-    location: string;
     status: string;
     manufacturer?: string;
     model?: string;
     serialNumber?: string;
     purchaseDate?: string;
     warrantyExpiry?: string;
+    locationId?: string;
     assignedTo?: string;
     notes?: string;
   }) {
