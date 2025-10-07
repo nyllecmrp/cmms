@@ -28,7 +28,7 @@ export default function SuperadminPage() {
       try {
         setLoading(true);
         const data = await api.getOrganizations();
-        setOrganizations(data);
+        setOrganizations(data as Organization[]);
       } catch (err) {
         console.error('Failed to fetch organizations:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch organizations');

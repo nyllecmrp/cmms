@@ -49,7 +49,7 @@ export default function ModuleRequestsPage() {
     setLoading(true);
     try {
       const data = await api.getPendingModuleRequests();
-      setRequests(data);
+      setRequests(data as ModuleRequest[]);
     } catch (error) {
       console.error('Failed to fetch requests:', error);
     } finally {

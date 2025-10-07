@@ -54,9 +54,9 @@ export default function UsageMonitoringPage() {
       // Fetch module licenses for each organization
       const allLicenses: ModuleLicense[] = [];
 
-      for (const org of orgs) {
+      for (const org of orgs as any[]) {
         try {
-          const modules = await api.getOrganizationModules(org.id);
+          const modules = await api.getOrganizationModules(org.id) as any[];
 
           modules.forEach((module: any) => {
             if (module.isActive && module.isLicensed) {

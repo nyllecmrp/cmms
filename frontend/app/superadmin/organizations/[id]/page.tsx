@@ -113,7 +113,7 @@ export default function OrganizationModulesPage() {
 
       // Refresh module list
       const data = await api.getOrganizationModules(params.id as string);
-      setModules(data);
+      setModules(data as Module[]);
     } catch (error: any) {
       console.error('Failed to activate module:', error);
       alert(`❌ Failed to activate module: ${error.message}`);
@@ -146,7 +146,7 @@ export default function OrganizationModulesPage() {
 
       // Refresh module list
       const data = await api.getOrganizationModules(params.id as string);
-      setModules(data);
+      setModules(data as Module[]);
     } catch (error: any) {
       console.error('Failed to deactivate module:', error);
       alert(`❌ Failed to deactivate module: ${error.message}`);

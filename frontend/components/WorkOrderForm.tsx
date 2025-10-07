@@ -42,7 +42,7 @@ export default function WorkOrderForm({ isOpen, onClose, onSuccess, workOrder }:
           const organizationId = user?.organizationId || 'org-test-1';
 
           const data = await api.getAssets(organizationId);
-          setAssets(data);
+          setAssets(data as any[]);
         } catch (err) {
           console.error('Failed to fetch assets:', err);
         }
