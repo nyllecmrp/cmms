@@ -41,7 +41,7 @@ export default function ExpirationsPage() {
 
       for (const org of orgs as any[]) {
         try {
-          const modules = await api.getOrganizationModules(org.id);
+          const modules = await api.getOrganizationModules(org.id) as any[];
 
           modules.forEach((module: any) => {
             if (module.isActive && module.expiresAt) {
