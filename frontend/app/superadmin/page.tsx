@@ -95,7 +95,10 @@ export default function SuperadminPage() {
         <div className="bg-white rounded-lg shadow">
           <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-900">Organizations</h2>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold">
+            <button 
+              onClick={() => alert('Organization creation feature coming soon! This would open a form to add new organizations.')}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold"
+            >
               + Add Organization
             </button>
           </div>
@@ -157,7 +160,12 @@ export default function SuperadminPage() {
                         >
                           Manage Modules
                         </button>
-                        <button className="text-gray-600 hover:text-gray-800">Edit</button>
+                        <button 
+                          onClick={() => alert('Organization editing feature coming soon!')}
+                          className="text-gray-600 hover:text-gray-800"
+                        >
+                          Edit
+                        </button>
                       </td>
                     </tr>
                   ))}
