@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import api from '@/lib/api';
 
 interface PMSchedule {
   id: string;
@@ -14,9 +16,21 @@ interface PMSchedule {
   estimatedDuration: string;
 }
 
+interface Asset {
+  id: string;
+  name: string;
+  assetNumber: string;
+  category: string;
+}
+
 export default function PreventiveMaintenancePage() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'schedules' | 'calendar' | 'compliance'>('schedules');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [assetSearch, setAssetSearch] = useState('');
+  const [showAssetDropdown, setShowAssetDropdown] = useState(false);
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
 
   const [schedules] = useState<PMSchedule[]>([
     {
@@ -53,6 +67,21 @@ export default function PreventiveMaintenancePage() {
       estimatedDuration: '4 hours',
     },
   ]);
+
+  // Fetch assets when modal opens
+  useEffect(() => {
+    if (showAddModal && user?.organizationId) {
+      const fetchAssets = async () => {
+        try {
+          const data = await api.getAssets(user.organizationId);
+          setAssets(data as Asset[]);
+        } catch (error) {
+          console.error('Failed to fetch assets:', error);
+        }
+      };
+      fetchAssets();
+    }
+  }, [showAddModal, user?.organizationId]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -324,16 +353,59 @@ export default function PreventiveMaintenancePage() {
                     />
                   </div>
 
-                  <div>
+                  <div className="relative">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Select Asset *
                     </label>
-                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900">
-                      <option>Select an asset...</option>
-                      <option>Conveyor Motor A1</option>
-                      <option>HVAC Unit 5</option>
-                      <option>Water Pump #3</option>
-                    </select>
+                    <input
+                      type="text"
+                      placeholder="Type to search assets..."
+                      value={selectedAsset ? `${selectedAsset.name} (${selectedAsset.assetNumber})` : assetSearch}
+                      onChange={(e) => {
+                        setAssetSearch(e.target.value);
+                        setSelectedAsset(null);
+                        setShowAssetDropdown(true);
+                      }}
+                      onFocus={() => setShowAssetDropdown(true)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    />
+                    
+                    {/* Asset Dropdown */}
+                    {showAssetDropdown && !selectedAsset && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {assets.filter(asset => 
+                          asset.name.toLowerCase().includes(assetSearch.toLowerCase()) ||
+                          asset.assetNumber.toLowerCase().includes(assetSearch.toLowerCase())
+                        ).length > 0 ? (
+                          assets
+                            .filter(asset => 
+                              asset.name.toLowerCase().includes(assetSearch.toLowerCase()) ||
+                              asset.assetNumber.toLowerCase().includes(assetSearch.toLowerCase())
+                            )
+                            .map((asset) => (
+                              <button
+                                key={asset.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedAsset(asset);
+                                  setAssetSearch('');
+                                  setShowAssetDropdown(false);
+                                }}
+                                className="w-full px-4 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                              >
+                                <div className="text-sm font-medium text-gray-900">{asset.name}</div>
+                                <div className="text-xs text-gray-500">
+                                  {asset.assetNumber} • {asset.category}
+                                </div>
+                              </button>
+                            ))
+                        ) : (
+                          <div className="px-4 py-3 text-sm text-gray-500">
+                            {assets.length === 0 ? 'Loading assets...' : 'No assets found'}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div>
