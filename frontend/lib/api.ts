@@ -353,6 +353,23 @@ class ApiClient {
   async getOrganization(id: string) {
     return this.request(`/organizations/${id}`);
   }
+
+  async createOrganization(data: {
+    name: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    country?: string;
+    industry?: string;
+    tier?: string;
+    maxUsers?: number;
+  }) {
+    return this.request('/organizations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
 }
 
 export const api = new ApiClient(API_BASE_URL);

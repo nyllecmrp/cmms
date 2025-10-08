@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards, Patch, Body } from '@nestjs/common';
+import { Controller, Get, Post, Param, UseGuards, Patch, Body } from '@nestjs/common';
 import { OrganizationsService } from './organizations.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -15,6 +15,11 @@ export class OrganizationsController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.organizationsService.findOne(id);
+  }
+
+  @Post()
+  create(@Body() createData: any) {
+    return this.organizationsService.create(createData);
   }
 
   @Patch(':id')

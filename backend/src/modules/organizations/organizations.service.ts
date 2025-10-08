@@ -81,6 +81,25 @@ export class OrganizationsService {
     };
   }
 
+  async create(createData: any) {
+    const organization = await this.prisma.organization.create({
+      data: {
+        name: createData.name,
+        email: createData.email,
+        phone: createData.phone,
+        address: createData.address,
+        city: createData.city,
+        country: createData.country || 'Philippines',
+        industry: createData.industry,
+        tier: createData.tier || 'starter',
+        status: 'active',
+        maxUsers: createData.maxUsers || 10,
+      },
+    });
+
+    return { organization, message: 'Organization created successfully' };
+  }
+
   async update(id: string, updateData: any) {
     const organization = await this.prisma.organization.update({
       where: { id },

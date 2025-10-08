@@ -67,9 +67,14 @@ export default function SuperadminPage() {
     setSaveLoading(true);
     
     try {
-      // In a real implementation, this would call an API
-      // For now, just show success message
-      alert(`Organization "${formData.name}" would be created here. API endpoint needs to be implemented.`);
+      // Create organization via API
+      await api.createOrganization({
+        ...formData,
+        country: 'Philippines', // Default to Philippines
+      });
+      
+      // Show success message
+      alert(`✅ Organization "${formData.name}" created successfully!`);
       
       // Reset form and close modal
       setFormData({
@@ -87,8 +92,8 @@ export default function SuperadminPage() {
       // Refresh organizations list
       const data = await api.getOrganizations();
       setOrganizations(data as Organization[]);
-    } catch (err) {
-      alert('Failed to create organization');
+    } catch (err: any) {
+      alert(`❌ Failed to create organization: ${err.message || 'Unknown error'}`);
     } finally {
       setSaveLoading(false);
     }
