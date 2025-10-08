@@ -28,7 +28,6 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
     assetNumber: '',
     name: '',
     category: 'Equipment',
-    location: '',
     status: 'operational',
     manufacturer: '',
     model: '',
@@ -44,7 +43,6 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
         assetNumber: asset.assetNumber || '',
         name: asset.name || '',
         category: asset.category || 'Equipment',
-        location: asset.location || '',
         status: asset.status || 'operational',
         manufacturer: asset.manufacturer || '',
         model: asset.model || '',
@@ -55,7 +53,6 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
         assetNumber: '',
         name: '',
         category: 'Equipment',
-        location: '',
         status: 'operational',
         manufacturer: '',
         model: '',
@@ -91,11 +88,10 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
         });
       } else {
         // Create new asset
-        const { location, ...assetData } = formData;
         await api.createAsset({
           organizationId,
           createdById: user?.id || '',
-          ...assetData,
+          ...formData,
           // locationId can be added later when location management is implemented
         });
       }
@@ -182,19 +178,6 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
               <option value="maintenance">Maintenance</option>
             </select>
           </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Location *
-          </label>
-          <input
-            type="text"
-            value={formData.location}
-            onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-            required
-          />
         </div>
 
         <div>

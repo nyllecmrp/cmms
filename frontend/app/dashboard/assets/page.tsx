@@ -11,7 +11,6 @@ interface Asset {
   name: string;
   category: string;
   status: string;
-  location?: string;
   manufacturer?: string;
   model?: string;
   serialNumber?: string;
@@ -52,7 +51,6 @@ export default function AssetsPage() {
             name: 'Hydraulic Pump Unit A',
             category: 'Equipment',
             status: 'operational',
-            location: 'Production Line 1',
           },
           {
             id: '2',
@@ -60,7 +58,6 @@ export default function AssetsPage() {
             name: 'CT Scanner - Radiology',
             category: 'Equipment',
             status: 'operational',
-            location: 'Radiology Department',
           },
         ]);
       }
@@ -205,9 +202,6 @@ export default function AssetsPage() {
                     Category
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Location
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -226,9 +220,6 @@ export default function AssetsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm text-gray-600">{asset.category}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm text-gray-600">{asset.location || '-'}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(asset.status)}`}>
