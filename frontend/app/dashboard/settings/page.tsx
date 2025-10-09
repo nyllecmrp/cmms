@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import api from '@/lib/api';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -52,29 +53,17 @@ export default function SettingsPage() {
     setSuccess('');
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3000/api/auth/profile', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          firstName: profileData.firstName,
-          lastName: profileData.lastName,
-          phone: profileData.phone,
-          jobTitle: profileData.jobTitle,
-          department: profileData.department,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to update profile');
+      if (!user?.id) {
+        throw new Error('User ID not found');
       }
 
-      setSuccess(data.message || 'Profile updated successfully!');
+      await api.updateProfile(user.id, {
+        firstName: profileData.firstName,
+        lastName: profileData.lastName,
+        phone: profileData.phone,
+      });
+
+      setSuccess('Profile updated successfully!');
     } catch (err: any) {
       setError(err.message || 'Failed to update profile');
     } finally {
@@ -100,26 +89,12 @@ export default function SettingsPage() {
     setSuccess('');
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3000/api/auth/change-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          currentPassword: passwordData.currentPassword,
-          newPassword: passwordData.newPassword,
-        }),
+      await api.changePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to change password');
-      }
-
-      setSuccess(data.message || 'Password changed successfully!');
+      setSuccess('Password changed successfully!');
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err: any) {
       setError(err.message || 'Failed to change password');
@@ -135,30 +110,19 @@ export default function SettingsPage() {
     setSuccess('');
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3000/api/organizations/${user?.organizationId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: orgData.name,
-          address: orgData.address,
-          city: orgData.city,
-          country: orgData.country,
-          industry: orgData.industry,
-          timezone: orgData.timezone,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to update organization');
+      if (!user?.organizationId) {
+        throw new Error('Organization ID not found');
       }
 
-      setSuccess(data.message || 'Organization settings updated successfully!');
+      await api.updateOrganization(user.organizationId, {
+        name: orgData.name,
+        address: orgData.address,
+        city: orgData.city,
+        country: orgData.country,
+        industry: orgData.industry,
+      });
+
+      setSuccess('Organization settings updated successfully!');
     } catch (err: any) {
       setError(err.message || 'Failed to update organization');
     } finally {
@@ -173,23 +137,13 @@ export default function SettingsPage() {
     setSuccess('');
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3000/api/users/${user?.id}/notifications`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(notificationSettings),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to update notifications');
+      if (!user?.id) {
+        throw new Error('User ID not found');
       }
 
-      setSuccess(data.message || 'Notification preferences updated!');
+      await api.updateNotifications(user.id, notificationSettings);
+
+      setSuccess('Notification preferences updated!');
     } catch (err: any) {
       setError(err.message || 'Failed to update notifications');
     } finally {

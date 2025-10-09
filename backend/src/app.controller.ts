@@ -1,4 +1,4 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { Controller, Get, Post, Query } from '@nestjs/common';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
@@ -16,7 +16,16 @@ export class AppController {
   }
 
   @Get('seed')
-  async seedDatabase() {
+  async seedDatabase(@Query('secret') secret?: string) {
+    // Simple secret protection - only allow if correct secret is provided
+    const SEED_SECRET = process.env.SEED_SECRET || 'my-secret-seed-key-2025';
+    
+    if (secret !== SEED_SECRET) {
+      return {
+        success: false,
+        message: '❌ Unauthorized. Provide ?secret=YOUR_SECRET_KEY',
+      };
+    }
     try {
       console.log('🌱 Starting seed...');
 
@@ -87,7 +96,7 @@ export class AppController {
         },
       });
 
-      await this.prisma.user.upsert({
+      const user3 = await this.prisma.user.upsert({
         where: { email: 'admin@metrohospital.ph' },
         update: {},
         create: {
@@ -102,14 +111,363 @@ export class AppController {
         },
       });
 
+      // Create technician users for Acme
+      const tech1 = await this.prisma.user.upsert({
+        where: { email: 'tech1@acme.com' },
+        update: {},
+        create: {
+          email: 'tech1@acme.com',
+          password: hashedPassword,
+          firstName: 'Juan',
+          lastName: 'Cruz',
+          phone: '+63 917 456 7890',
+          status: 'active',
+          organizationId: org1.id,
+          isSuperAdmin: false,
+        },
+      });
+
+      const tech2 = await this.prisma.user.upsert({
+        where: { email: 'tech2@acme.com' },
+        update: {},
+        create: {
+          email: 'tech2@acme.com',
+          password: hashedPassword,
+          firstName: 'Ana',
+          lastName: 'Reyes',
+          phone: '+63 917 567 8901',
+          status: 'active',
+          organizationId: org1.id,
+          isSuperAdmin: false,
+        },
+      });
+
+      console.log('✅ Users created');
+
+      // Create locations for Acme
+      const loc1 = await this.prisma.location.upsert({
+        where: { id: 'loc-1' },
+        update: {},
+        create: {
+          id: 'loc-1',
+          organizationId: org1.id,
+          name: 'Building A - Production Floor',
+          type: 'Building',
+          address: '123 Industrial Ave',
+          city: 'Manila',
+        },
+      });
+
+      const loc2 = await this.prisma.location.upsert({
+        where: { id: 'loc-2' },
+        update: {},
+        create: {
+          id: 'loc-2',
+          organizationId: org1.id,
+          name: 'Building B - Warehouse',
+          type: 'Building',
+          address: '125 Industrial Ave',
+          city: 'Manila',
+        },
+      });
+
+      const loc3 = await this.prisma.location.upsert({
+        where: { id: 'loc-3' },
+        update: {},
+        create: {
+          id: 'loc-3',
+          organizationId: org1.id,
+          name: 'Building C - Maintenance Shop',
+          type: 'Building',
+          address: '127 Industrial Ave',
+          city: 'Manila',
+        },
+      });
+
+      console.log('✅ Locations created');
+
+      // Get the admin user for createdBy
+      const adminUser = await this.prisma.user.findUnique({
+        where: { email: 'admin@acme.com' },
+      });
+
+      // Create assets for Acme
+      const asset1 = await this.prisma.asset.upsert({
+        where: { id: 'asset-1' },
+        update: {},
+        create: {
+          id: 'asset-1',
+          organizationId: org1.id,
+          createdById: adminUser.id,
+          assetNumber: 'PUMP-001',
+          name: 'Hydraulic Pump Unit A',
+          category: 'Equipment',
+          status: 'operational',
+          manufacturer: 'Bosch Rexroth',
+          model: 'A10VSO',
+          serialNumber: 'BR-2024-001',
+          locationId: loc1.id,
+          description: 'Main production line hydraulic pump',
+          criticality: 'high',
+        },
+      });
+
+      const asset2 = await this.prisma.asset.upsert({
+        where: { id: 'asset-2' },
+        update: {},
+        create: {
+          id: 'asset-2',
+          organizationId: org1.id,
+          createdById: adminUser.id,
+          assetNumber: 'CONV-001',
+          name: 'Conveyor Belt System 1',
+          category: 'Equipment',
+          status: 'operational',
+          manufacturer: 'Siemens',
+          model: 'CONV-500',
+          serialNumber: 'SI-2024-002',
+          locationId: loc1.id,
+          description: 'Primary conveyor for production line',
+          criticality: 'medium',
+        },
+      });
+
+      const asset3 = await this.prisma.asset.upsert({
+        where: { id: 'asset-3' },
+        update: {},
+        create: {
+          id: 'asset-3',
+          organizationId: org1.id,
+          createdById: adminUser.id,
+          assetNumber: 'GEN-001',
+          name: 'Backup Generator',
+          category: 'Equipment',
+          status: 'operational',
+          manufacturer: 'Caterpillar',
+          model: 'C15',
+          serialNumber: 'CAT-2024-003',
+          locationId: loc2.id,
+          description: 'Emergency backup power generator',
+          criticality: 'high',
+        },
+      });
+
+      const asset4 = await this.prisma.asset.upsert({
+        where: { id: 'asset-4' },
+        update: {},
+        create: {
+          id: 'asset-4',
+          organizationId: org1.id,
+          createdById: adminUser.id,
+          assetNumber: 'HVAC-001',
+          name: 'HVAC Unit - Floor 2',
+          category: 'Equipment',
+          status: 'maintenance',
+          manufacturer: 'Carrier',
+          model: 'AquaEdge 19DV',
+          serialNumber: 'CAR-2024-004',
+          locationId: loc1.id,
+          description: 'Climate control for production floor',
+          criticality: 'medium',
+        },
+      });
+
+      const asset5 = await this.prisma.asset.upsert({
+        where: { id: 'asset-5' },
+        update: {},
+        create: {
+          id: 'asset-5',
+          organizationId: org1.id,
+          createdById: adminUser.id,
+          assetNumber: 'FORK-001',
+          name: 'Forklift #1',
+          category: 'Vehicle',
+          status: 'operational',
+          manufacturer: 'Toyota',
+          model: '8FD25',
+          serialNumber: 'TOY-2024-005',
+          locationId: loc2.id,
+          description: 'Warehouse material handling',
+          criticality: 'low',
+        },
+      });
+
+      const asset6 = await this.prisma.asset.upsert({
+        where: { id: 'asset-6' },
+        update: {},
+        create: {
+          id: 'asset-6',
+          organizationId: org1.id,
+          createdById: adminUser.id,
+          assetNumber: 'CNC-001',
+          name: 'CNC Milling Machine',
+          category: 'Equipment',
+          status: 'operational',
+          manufacturer: 'Haas',
+          model: 'VF-2',
+          serialNumber: 'HAAS-2024-006',
+          locationId: loc1.id,
+          description: 'Precision machining center',
+          criticality: 'high',
+        },
+      });
+
+      console.log('✅ Assets created');
+
+      // Create work orders
+      const year = new Date().getFullYear();
+      
+      await this.prisma.workOrder.upsert({
+        where: { id: 'wo-1' },
+        update: {},
+        create: {
+          id: 'wo-1',
+          organizationId: org1.id,
+          createdById: adminUser.id,
+          workOrderNumber: `WO-${year}-001`,
+          title: 'Hydraulic Pump Oil Change',
+          description: 'Scheduled oil change and filter replacement for hydraulic pump unit',
+          type: 'preventive',
+          priority: 'medium',
+          status: 'in_progress',
+          assetId: asset1.id,
+          assignedToId: tech1.id,
+          scheduledStart: new Date('2025-10-10T08:00:00'),
+          scheduledEnd: new Date('2025-10-10T12:00:00'),
+          estimatedHours: 4,
+        },
+      });
+
+      await this.prisma.workOrder.upsert({
+        where: { id: 'wo-2' },
+        update: {},
+        create: {
+          id: 'wo-2',
+          organizationId: org1.id,
+          createdById: adminUser.id,
+          workOrderNumber: `WO-${year}-002`,
+          title: 'Conveyor Belt Alignment',
+          description: 'Belt showing signs of misalignment, needs adjustment',
+          type: 'corrective',
+          priority: 'high',
+          status: 'open',
+          assetId: asset2.id,
+          assignedToId: tech2.id,
+          scheduledStart: new Date('2025-10-11T09:00:00'),
+          scheduledEnd: new Date('2025-10-11T11:00:00'),
+          estimatedHours: 2,
+        },
+      });
+
+      await this.prisma.workOrder.upsert({
+        where: { id: 'wo-3' },
+        update: {},
+        create: {
+          id: 'wo-3',
+          organizationId: org1.id,
+          createdById: adminUser.id,
+          workOrderNumber: `WO-${year}-003`,
+          title: 'Generator Load Test',
+          description: 'Monthly load test and inspection of backup generator',
+          type: 'preventive',
+          priority: 'medium',
+          status: 'assigned',
+          assetId: asset3.id,
+          assignedToId: tech1.id,
+          scheduledStart: new Date('2025-10-15T14:00:00'),
+          scheduledEnd: new Date('2025-10-15T16:00:00'),
+          estimatedHours: 2,
+        },
+      });
+
+      await this.prisma.workOrder.upsert({
+        where: { id: 'wo-4' },
+        update: {},
+        create: {
+          id: 'wo-4',
+          organizationId: org1.id,
+          createdById: adminUser.id,
+          workOrderNumber: `WO-${year}-004`,
+          title: 'HVAC Filter Replacement',
+          description: 'Quarterly HVAC filter replacement and system inspection',
+          type: 'preventive',
+          priority: 'urgent',
+          status: 'completed',
+          assetId: asset4.id,
+          assignedToId: tech2.id,
+          scheduledStart: new Date('2025-10-01T10:00:00'),
+          scheduledEnd: new Date('2025-10-01T14:00:00'),
+          actualStart: new Date('2025-10-01T10:15:00'),
+          actualEnd: new Date('2025-10-01T13:45:00'),
+          estimatedHours: 4,
+          actualHours: 3.5,
+          laborCost: 1750,
+          partsCost: 500,
+          totalCost: 2250,
+          completedAt: new Date('2025-10-01T13:45:00'),
+        },
+      });
+
+      await this.prisma.workOrder.upsert({
+        where: { id: 'wo-5' },
+        update: {},
+        create: {
+          id: 'wo-5',
+          organizationId: org1.id,
+          createdById: adminUser.id,
+          workOrderNumber: `WO-${year}-005`,
+          title: 'Forklift Battery Check',
+          description: 'Weekly battery inspection and water level check',
+          type: 'preventive',
+          priority: 'low',
+          status: 'open',
+          assetId: asset5.id,
+          scheduledStart: new Date('2025-10-12T08:00:00'),
+          scheduledEnd: new Date('2025-10-12T09:00:00'),
+          estimatedHours: 1,
+        },
+      });
+
+      await this.prisma.workOrder.upsert({
+        where: { id: 'wo-6' },
+        update: {},
+        create: {
+          id: 'wo-6',
+          organizationId: org1.id,
+          createdById: adminUser.id,
+          workOrderNumber: `WO-${year}-006`,
+          title: 'CNC Machine Calibration',
+          description: 'Precision calibration and alignment check',
+          type: 'preventive',
+          priority: 'high',
+          status: 'assigned',
+          assetId: asset6.id,
+          assignedToId: tech1.id,
+          scheduledStart: new Date('2025-10-20T07:00:00'),
+          scheduledEnd: new Date('2025-10-20T12:00:00'),
+          estimatedHours: 5,
+        },
+      });
+
+      console.log('✅ Work orders created');
+
       return {
         success: true,
-        message: '✅ Database seeded successfully!',
-        users: [
-          'superadmin@cmms.com',
-          'admin@acme.com',
-          'admin@metrohospital.ph'
-        ]
+        message: '✅ Database seeded successfully with comprehensive test data!',
+        data: {
+          organizations: 2,
+          users: 5,
+          locations: 3,
+          assets: 6,
+          workOrders: 6,
+        },
+        credentials: {
+          superadmin: 'superadmin@cmms.com / admin123',
+          acme: 'admin@acme.com / admin123',
+          hospital: 'admin@metrohospital.ph / admin123',
+          technician1: 'tech1@acme.com / admin123',
+          technician2: 'tech2@acme.com / admin123',
+        }
       };
     } catch (error) {
       console.error('Seed error:', error);

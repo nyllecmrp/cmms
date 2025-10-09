@@ -186,6 +186,38 @@ class ApiClient {
     });
   }
 
+  async updateProfile(userId: string, data: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+  }) {
+    return this.request(`/auth/profile`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async changePassword(data: {
+    currentPassword: string;
+    newPassword: string;
+  }) {
+    return this.request('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateNotifications(userId: string, data: {
+    emailNotifications?: boolean;
+    pushNotifications?: boolean;
+  }) {
+    return this.request(`/users/${userId}/notifications`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
   // Module Request APIs
   async createModuleRequest(data: {
     organizationId: string;

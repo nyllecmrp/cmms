@@ -187,10 +187,55 @@ export default function PreventiveMaintenancePage() {
 
   const handleGenerateWorkOrder = async (scheduleId: string) => {
     try {
-      // TODO: Implement work order generation from PM schedule
-      alert('Work order generated successfully!');
-    } catch (err) {
+      if (!user?.organizationId || !user?.id) {
+        alert('User information not available');
+        return;
+      }
+
+      // Find the schedule
+      const schedule = schedules.find(s => s.id === scheduleId);
+      if (!schedule) {
+        alert('Schedule not found');
+        return;
+      }
+
+      // Auto-generate work order number
+      const workOrdersData = await api.getWorkOrders(user.organizationId);
+      const workOrders = workOrdersData as any[];
+      const year = new Date().getFullYear();
+      const count = workOrders.filter(wo => wo.workOrderNumber?.startsWith(`WO-${year}`)).length + 1;
+      const workOrderNumber = `WO-${year}-${String(count).padStart(3, '0')}`;
+
+      // Calculate scheduled dates
+      const scheduledStart = new Date(schedule.nextDue);
+      const scheduledEnd = new Date(schedule.nextDue);
+      scheduledEnd.setHours(scheduledEnd.getHours() + 2); // Default 2-hour window
+
+      // Create work order from PM schedule
+      await api.createWorkOrder({
+        organizationId: user.organizationId,
+        createdById: user.id,
+        workOrderNumber,
+        title: schedule.name,
+        description: `Preventive maintenance task generated from schedule: ${schedule.name}`,
+        type: 'preventive',
+        priority: schedule.priority,
+        status: 'open',
+        assetId: schedule.assetId,
+        scheduledStart: scheduledStart.toISOString(),
+        scheduledEnd: scheduledEnd.toISOString(),
+      });
+
+      alert(`✅ Work Order ${workOrderNumber} created successfully!\n\nYou can view it in the Work Orders page.`);
+
+      // Update schedule status to reflect work order was generated
+      const updatedSchedules = schedules.map(s => 
+        s.id === scheduleId ? { ...s, status: 'scheduled' } : s
+      );
+      setSchedules(updatedSchedules);
+    } catch (err: any) {
       console.error('Failed to generate work order:', err);
+      alert(`❌ Failed to generate work order: ${err.message || 'Unknown error'}`);
     }
   };
 
