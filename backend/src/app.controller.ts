@@ -191,6 +191,10 @@ export class AppController {
         where: { email: 'admin@acme.com' },
       });
 
+      if (!adminUser) {
+        throw new Error('Admin user not found');
+      }
+
       // Create assets for Acme
       const asset1 = await this.prisma.asset.upsert({
         where: { id: 'asset-1' },
