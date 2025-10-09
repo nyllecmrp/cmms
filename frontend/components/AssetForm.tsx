@@ -32,12 +32,39 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
     manufacturer: '',
     model: '',
     serialNumber: '',
+    locationId: '',
+    parentAssetId: '',
   });
+  const [locations, setLocations] = useState<any[]>([]);
+  const [assets, setAssets] = useState<any[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (isOpen) {
+      // Fetch locations and assets for dropdowns
+      const fetchData = async () => {
+        try {
+          const userData = localStorage.getItem('user');
+          const user = userData ? JSON.parse(userData) : null;
+          const organizationId = user?.organizationId || 'org-test-1';
+
+          // Fetch locations
+          const locationsData = await api.getLocations(organizationId);
+          setLocations(locationsData as any[]);
+
+          // Fetch assets for parent asset dropdown
+          const assetsData = await api.getAssets(organizationId);
+          setAssets(assetsData as any[]);
+        } catch (err) {
+          console.error('Failed to fetch data:', err);
+        }
+      };
+
+      fetchData();
+    }
+
     if (asset) {
       setFormData({
         assetNumber: asset.assetNumber || '',
@@ -47,6 +74,8 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
         manufacturer: asset.manufacturer || '',
         model: asset.model || '',
         serialNumber: asset.serialNumber || '',
+        locationId: '',
+        parentAssetId: '',
       });
     } else {
       setFormData({
@@ -57,6 +86,8 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
         manufacturer: '',
         model: '',
         serialNumber: '',
+        locationId: '',
+        parentAssetId: '',
       });
     }
     setUploadedFiles([]);
@@ -84,7 +115,15 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
         // Update existing asset
         await api.updateAsset(asset.id, {
           organizationId,
-          ...formData,
+          assetNumber: formData.assetNumber,
+          name: formData.name,
+          category: formData.category,
+          status: formData.status,
+          manufacturer: formData.manufacturer || undefined,
+          model: formData.model || undefined,
+          serialNumber: formData.serialNumber || undefined,
+          locationId: formData.locationId || undefined,
+          parentAssetId: formData.parentAssetId || undefined,
         });
       } else {
         // Create new asset
@@ -92,7 +131,8 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
           organizationId,
           createdById: user?.id || '',
           ...formData,
-          // locationId can be added later when location management is implemented
+          locationId: formData.locationId || undefined,
+          parentAssetId: formData.parentAssetId || undefined,
         });
       }
 
@@ -100,6 +140,21 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
       // const formData = new FormData();
       // uploadedFiles.forEach(file => formData.append('files', file));
       // await api.uploadAssetAttachments(assetId, formData);
+
+      // Reset form after successful submission
+      setFormData({
+        assetNumber: '',
+        name: '',
+        category: 'Equipment',
+        status: 'operational',
+        manufacturer: '',
+        model: '',
+        serialNumber: '',
+        locationId: '',
+        parentAssetId: '',
+      });
+      setUploadedFiles([]);
+      setError('');
 
       onSuccess();
       onClose();
@@ -176,6 +231,44 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
               <option value="operational">Operational</option>
               <option value="down">Down</option>
               <option value="maintenance">Maintenance</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Location
+            </label>
+            <select
+              value={formData.locationId}
+              onChange={(e) => setFormData({ ...formData, locationId: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+            >
+              <option value="">No Location</option>
+              {locations.map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.name} {location.type && `(${location.type})`}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Parent Asset
+            </label>
+            <select
+              value={formData.parentAssetId}
+              onChange={(e) => setFormData({ ...formData, parentAssetId: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+            >
+              <option value="">None (Top Level)</option>
+              {assets.filter(a => a.id !== asset?.id).map((assetItem) => (
+                <option key={assetItem.id} value={assetItem.id}>
+                  {assetItem.assetNumber} - {assetItem.name}
+                </option>
+              ))}
             </select>
           </div>
         </div>

@@ -9,6 +9,7 @@ import { ModuleRequestsModule } from './modules/module-requests/module-requests.
 import { ModuleLicensingModule } from './modules/module-licensing/module-licensing.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { UsersModule } from './modules/users/users.module';
+import { LocationsModule } from './modules/locations/locations.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { UsersModule } from './modules/users/users.module';
     ModuleLicensingModule,
     OrganizationsModule,
     UsersModule,
+    LocationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

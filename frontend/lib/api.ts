@@ -256,6 +256,7 @@ class ApiClient {
     purchaseDate?: string;
     warrantyExpiry?: string;
     locationId?: string;
+    parentAssetId?: string;
     assignedTo?: string;
     notes?: string;
   }) {
@@ -267,17 +268,21 @@ class ApiClient {
 
   async updateAsset(id: string, data: {
     organizationId: string;
+    assetNumber?: string;
     name?: string;
+    description?: string;
     category?: string;
-    location?: string;
     status?: string;
     manufacturer?: string;
     model?: string;
     serialNumber?: string;
     purchaseDate?: string;
-    warrantyExpiry?: string;
-    assignedTo?: string;
-    notes?: string;
+    warrantyExpiresAt?: string;
+    locationId?: string;
+    parentAssetId?: string;
+    criticality?: string;
+    imageUrl?: string;
+    customFields?: string;
   }) {
     return this.request(`/assets/${id}`, {
       method: 'PATCH',
@@ -308,13 +313,17 @@ class ApiClient {
     organizationId: string;
     createdById: string;
     workOrderNumber: string;
-    assetId?: string;
     title: string;
     description?: string;
+    type?: string;
     priority: string;
     status: string;
+    assetId?: string;
     assignedToId?: string;
-    dueDate?: string;
+    scheduledStart?: string;
+    scheduledEnd?: string;
+    estimatedHours?: number;
+    notes?: string;
   }) {
     return this.request('/work-orders', {
       method: 'POST',
@@ -324,14 +333,24 @@ class ApiClient {
 
   async updateWorkOrder(id: string, data: {
     organizationId: string;
-    assetId?: string;
+    workOrderNumber?: string;
     title?: string;
     description?: string;
+    type?: string;
     priority?: string;
     status?: string;
+    assetId?: string;
     assignedToId?: string;
-    dueDate?: string;
-    completedAt?: string;
+    scheduledStart?: string;
+    scheduledEnd?: string;
+    actualStart?: string;
+    actualEnd?: string;
+    estimatedHours?: number;
+    actualHours?: number;
+    laborCost?: number;
+    partsCost?: number;
+    totalCost?: number;
+    notes?: string;
   }) {
     return this.request(`/work-orders/${id}`, {
       method: 'PATCH',
@@ -368,6 +387,73 @@ class ApiClient {
     return this.request('/organizations', {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  }
+
+  async updateOrganization(id: string, data: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    country?: string;
+    industry?: string;
+    tier?: string;
+    maxUsers?: number;
+  }) {
+    return this.request(`/organizations/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Locations APIs
+  async getLocations(organizationId: string) {
+    return this.request(`/locations?organizationId=${organizationId}`);
+  }
+
+  async getLocation(id: string) {
+    return this.request(`/locations/${id}`);
+  }
+
+  async getLocationStats(organizationId: string) {
+    return this.request(`/locations/stats?organizationId=${organizationId}`);
+  }
+
+  async createLocation(data: {
+    organizationId: string;
+    name: string;
+    type?: string;
+    parentId?: string;
+    address?: string;
+    city?: string;
+    latitude?: number;
+    longitude?: number;
+  }) {
+    return this.request('/locations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateLocation(id: string, data: {
+    name?: string;
+    type?: string;
+    parentId?: string;
+    address?: string;
+    city?: string;
+    latitude?: number;
+    longitude?: number;
+  }) {
+    return this.request(`/locations/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteLocation(id: string) {
+    return this.request(`/locations/${id}`, {
+      method: 'DELETE',
     });
   }
 }

@@ -9,8 +9,14 @@ export class WorkOrdersController {
   constructor(private readonly workOrdersService: WorkOrdersService) {}
 
   @Post()
-  create(@Body() createWorkOrderDto: CreateWorkOrderDto) {
-    return this.workOrdersService.create(createWorkOrderDto);
+  async create(@Body() createWorkOrderDto: CreateWorkOrderDto) {
+    try {
+      console.log('Creating work order with data:', JSON.stringify(createWorkOrderDto, null, 2));
+      return await this.workOrdersService.create(createWorkOrderDto);
+    } catch (error) {
+      console.error('Work order creation error:', error);
+      throw error;
+    }
   }
 
   @Get()
@@ -24,8 +30,16 @@ export class WorkOrdersController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateWorkOrderDto: UpdateWorkOrderDto) {
-    return this.workOrdersService.update(id, updateWorkOrderDto);
+  async update(@Param('id') id: string, @Body() updateWorkOrderDto: UpdateWorkOrderDto) {
+    try {
+      console.log('Updating work order:', id, JSON.stringify(updateWorkOrderDto, null, 2));
+      const result = await this.workOrdersService.update(id, updateWorkOrderDto);
+      console.log('Update successful');
+      return result;
+    } catch (error) {
+      console.error('Work order update error:', error);
+      throw error;
+    }
   }
 
   @Delete(':id')

@@ -1,0 +1,354 @@
+=================================================================
+COMPREHENSIVE FORM TESTING CHECKLIST - ALL MODULES
+=================================================================
+Test each form for both CREATE and UPDATE operations.
+Mark with ✓ when passed, ✗ when failed.
+
+=================================================================
+PART 1: NEW HIGH-PRIORITY MODULES (Assets, Locations, Work Orders)
+=================================================================
+
+-----------------------------------------------------------------
+1. ASSET FORM TESTING
+-----------------------------------------------------------------
+
+A. CREATE NEW ASSET
+  [ ] 1. Click "+ Add New Asset"
+  [ ] 2. Fill in all fields:
+          - Asset Number: TEST-001
+          - Asset Name: Test Equipment
+          - Category: Equipment
+          - Status: operational
+          - Manufacturer: Test Manufacturer
+          - Model: Model-X
+          - Serial Number: SN12345
+          - Location: Select any location (if available)
+          - Parent Asset: Leave blank
+  [ ] 3. Click "Create Asset"
+  [ ] 4. Verify modal closes
+  [ ] 5. Verify new asset appears in table
+  [ ] 6. Verify Asset# shows "TEST-001"
+
+B. EDIT EXISTING ASSET
+  [ ] 7. Click "Edit" on the asset you just created
+  [ ] 8. Verify form pre-fills with correct data
+  [ ] 9. Change the following:
+          - Asset Number: TEST-001-UPDATED
+          - Asset Name: Test Equipment Updated
+          - Manufacturer: New Manufacturer
+          - Location: Change to different location
+          - Parent Asset: Select an asset (if available)
+  [ ] 10. Click "Update Asset"
+  [ ] 11. Verify modal closes
+  [ ] 12. Verify changes appear in table WITHOUT refreshing page
+  [ ] 13. Verify Asset# shows "TEST-001-UPDATED"
+
+C. FORM RESET
+  [ ] 14. Click "+ Add New Asset" again
+  [ ] 15. Verify ALL fields are empty/default (no old data)
+  [ ] 16. Click "Cancel"
+  [ ] 17. Click "+ Add New Asset" again
+  [ ] 18. Verify form is still empty
+
+D. DROPDOWNS
+  [ ] 19. Verify Location dropdown shows all locations
+  [ ] 20. Verify Parent Asset dropdown shows all assets
+  [ ] 21. Verify Parent Asset dropdown does NOT show the current asset when editing
+
+-----------------------------------------------------------------
+2. LOCATION FORM TESTING
+-----------------------------------------------------------------
+
+A. CREATE NEW LOCATION
+  [ ] 1. Go to Locations page
+  [ ] 2. Click "+ Add Location"
+  [ ] 3. Fill in all fields:
+          - Location Name: Test Building
+          - Type: Building
+          - Address: 123 Test Street
+          - City: Test City
+  [ ] 4. Click "Add Location"
+  [ ] 5. Verify modal closes
+  [ ] 6. Verify new location appears in grid
+  [ ] 7. Verify location shows 0 assets
+
+B. EDIT EXISTING LOCATION
+  [ ] 8. Click "Edit" on the location you just created
+  [ ] 9. Verify form pre-fills with correct data
+  [ ] 10. Change the following:
+          - Location Name: Test Building Updated
+          - Type: Change to "Warehouse"
+          - Address: 456 New Street
+          - City: New City
+  [ ] 11. Click "Update Location"
+  [ ] 12. Verify modal closes
+  [ ] 13. Verify changes appear in grid WITHOUT refreshing page
+  [ ] 14. Verify location name shows "Test Building Updated"
+
+C. FORM RESET
+  [ ] 15. Click "+ Add Location" again
+  [ ] 16. Verify ALL fields are empty/default (no old data)
+  [ ] 17. Click "Cancel"
+  [ ] 18. Click "+ Add Location" again
+  [ ] 19. Verify form is still empty
+
+D. DELETE WITH ASSETS
+  [ ] 20. Assign an asset to the test location
+  [ ] 21. Try to delete the location
+  [ ] 22. Verify error message appears
+  [ ] 23. Verify location is NOT deleted
+
+-----------------------------------------------------------------
+3. WORK ORDER FORM TESTING
+-----------------------------------------------------------------
+
+A. CREATE NEW WORK ORDER
+  [ ] 1. Go to Work Orders page
+  [ ] 2. Click "+ Create Work Order"
+  [ ] 3. Verify WO# is auto-filled (e.g., WO-2025-003)
+  [ ] 4. Verify WO# is editable
+  [ ] 5. Fill in all fields:
+          - Work Order Number: Leave auto-generated or change
+          - Title: Test Work Order
+          - Description: Test description
+          - Priority: High
+          - Status: Open
+          - Asset: Select any asset
+          - Assign To: Select any user
+          - Due Date: Pick tomorrow's date
+  [ ] 6. Click "Create Work Order"
+  [ ] 7. Verify modal closes
+  [ ] 8. Verify new work order appears in table
+  [ ] 9. Verify WO# column shows the correct number (NOT a UUID)
+
+B. EDIT EXISTING WORK ORDER
+  [ ] 10. Click "Edit" on the work order you just created
+  [ ] 11. Verify form pre-fills with correct data
+  [ ] 12. Verify WO# is editable
+  [ ] 13. Change the following:
+          - Work Order Number: WO-TEST-UPDATED
+          - Title: Test Work Order Updated
+          - Description: New description
+          - Priority: Change to "Urgent"
+          - Status: Change to "Assigned"
+          - Asset: Change to different asset
+          - Assign To: Change to different user
+          - Due Date: Change date
+  [ ] 14. Click "Update Work Order"
+  [ ] 15. Verify modal closes
+  [ ] 16. Verify changes appear in table WITHOUT refreshing page
+  [ ] 17. Verify WO# shows "WO-TEST-UPDATED"
+  [ ] 18. Verify Title shows "Test Work Order Updated"
+  [ ] 19. Verify Asset shows new asset number
+  [ ] 20. Verify Assigned To shows new user
+
+C. FORM RESET
+  [ ] 21. Click "+ Create Work Order" again
+  [ ] 22. Verify WO# is auto-generated with next number
+  [ ] 23. Verify ALL other fields are empty/default (no old data)
+  [ ] 24. Click "Cancel"
+  [ ] 25. Click "+ Create Work Order" again
+  [ ] 26. Verify form is still empty with new auto WO#
+
+D. AUTO-GENERATION
+  [ ] 27. Create 3 work orders in a row
+  [ ] 28. Verify each gets sequential numbers: 
+          WO-2025-001, WO-2025-002, WO-2025-003
+  [ ] 29. Verify numbers don't collide or duplicate
+
+E. DROPDOWNS
+  [ ] 30. Verify Asset dropdown shows all assets
+  [ ] 31. Verify Assign To dropdown shows all users
+  [ ] 32. Verify both dropdowns are searchable/scrollable
+
+-----------------------------------------------------------------
+4. CROSS-FORM TESTING
+-----------------------------------------------------------------
+
+A. ASSET → WORK ORDER RELATIONSHIP
+  [ ] 1. Create an asset "PUMP-999"
+  [ ] 2. Create a work order and assign it to "PUMP-999"
+  [ ] 3. Go to Assets page
+  [ ] 4. Verify work order appears in asset's work order history
+          (if asset detail view is implemented)
+
+B. LOCATION → ASSET RELATIONSHIP
+  [ ] 5. Create a location "Floor 3"
+  [ ] 6. Create an asset and assign location "Floor 3"
+  [ ] 7. Go to Locations page
+  [ ] 8. Verify "Floor 3" shows 1 asset
+
+C. WORK ORDER SEARCH
+  [ ] 9. Go to Work Orders page
+  [ ] 10. Search by asset number (e.g., "PUMP-999")
+  [ ] 11. Verify work orders for that asset appear
+  [ ] 12. Search by work order title
+  [ ] 13. Verify correct work orders appear
+  [ ] 14. Search by assigned user name
+  [ ] 15. Verify correct work orders appear
+
+=================================================================
+PART 2: EXISTING MODULES (Users, Settings, Organizations)
+=================================================================
+
+-----------------------------------------------------------------
+5. USER MANAGEMENT TESTING
+-----------------------------------------------------------------
+
+A. INVITE NEW USER (CREATE ONLY)
+  [ ] 1. Go to Users page
+  [ ] 2. Click "Invite User"
+  [ ] 3. Fill in all fields:
+          - Email: test@example.com
+          - First Name: Test
+          - Last Name: User
+          - Role: Technician
+  [ ] 4. Click "Invite"
+  [ ] 5. Verify modal closes
+  [ ] 6. Verify new user appears in table
+  [ ] 7. Verify form is empty when reopened
+
+B. DELETE USER
+  [ ] 8. Click "Delete" on a test user
+  [ ] 9. Confirm deletion
+  [ ] 10. Verify user is removed from table immediately
+
+-----------------------------------------------------------------
+6. SETTINGS PAGE TESTING
+-----------------------------------------------------------------
+
+A. CHANGE PASSWORD
+  [ ] 1. Go to Settings page
+  [ ] 2. Scroll to "Change Password" section
+  [ ] 3. Fill in:
+          - Current Password: (your password)
+          - New Password: TestPass123!
+          - Confirm Password: TestPass123!
+  [ ] 4. Click "Update Password"
+  [ ] 5. Verify success message appears
+  [ ] 6. Verify ALL password fields are cleared after success
+  [ ] 7. Test with mismatched passwords - should show error
+  [ ] 8. Test with short password (<8 chars) - should show error
+
+B. UPDATE ORGANIZATION INFO
+  [ ] 9. Go to "Organization Information" section
+  [ ] 10. Change:
+          - Organization Name: Test Org Updated
+          - Address: 789 Updated St
+          - City: Updated City
+  [ ] 11. Click "Save Changes"
+  [ ] 12. Verify success message appears
+  [ ] 13. Verify form fields KEEP the updated values (don't reset)
+  [ ] 14. Refresh page
+  [ ] 15. Verify changes persisted
+
+C. NOTIFICATION PREFERENCES
+  [ ] 16. Go to "Notification Preferences" section
+  [ ] 17. Toggle email/push notification switches
+  [ ] 18. Click "Save Preferences"
+  [ ] 19. Verify success message appears
+  [ ] 20. Refresh page
+  [ ] 21. Verify toggles remain in selected state
+
+-----------------------------------------------------------------
+7. SUPERADMIN - ORGANIZATION MANAGEMENT
+-----------------------------------------------------------------
+
+A. CREATE NEW ORGANIZATION
+  [ ] 1. Login as superadmin
+  [ ] 2. Go to Superadmin dashboard
+  [ ] 3. Click "+ Add Organization"
+  [ ] 4. Fill in all fields:
+          - Organization Name: Test Company
+          - Email: test@company.com
+          - Phone: 123-456-7890
+          - Address: 123 Test St
+          - City: Test City
+          - Industry: Manufacturing
+          - Tier: Professional
+          - Max Users: 25
+  [ ] 5. Click "Create Organization"
+  [ ] 6. Verify success alert appears
+  [ ] 7. Verify modal closes
+  [ ] 8. Verify new organization appears in table
+  [ ] 9. Verify form is empty when reopened
+
+B. EDIT ORGANIZATION (IF IMPLEMENTED)
+  [ ] 10. Click "Edit" on an organization
+  [ ] 11. If modal opens, change fields and verify update
+  [ ] 12. If no modal, this feature is pending
+
+-----------------------------------------------------------------
+8. SUPERADMIN - MODULE LICENSING
+-----------------------------------------------------------------
+
+A. ACTIVATE MODULE FOR ORGANIZATION
+  [ ] 1. Go to Superadmin → Organizations
+  [ ] 2. Click on an organization
+  [ ] 3. Scroll to module list
+  [ ] 4. Click "Activate" on a locked module
+  [ ] 5. Fill in expiration date (if applicable)
+  [ ] 6. Click "Activate"
+  [ ] 7. Verify module status changes to "Active"
+  [ ] 8. Verify organization can now access that module
+
+B. DEACTIVATE MODULE
+  [ ] 9. Click "Deactivate" on an active module
+  [ ] 10. Confirm action
+  [ ] 11. Verify module status changes to "Inactive"
+
+-----------------------------------------------------------------
+9. MODULE REQUESTS (USER SIDE)
+-----------------------------------------------------------------
+
+A. REQUEST MODULE ACCESS
+  [ ] 1. Login as regular user (not superadmin)
+  [ ] 2. Go to Modules page
+  [ ] 3. Find a locked module
+  [ ] 4. Click "Request Access"
+  [ ] 5. Fill in justification
+  [ ] 6. Click "Submit Request"
+  [ ] 7. Verify success message
+  [ ] 8. Verify request appears in "My Requests" section
+
+B. SUPERADMIN REVIEW REQUEST
+  [ ] 9. Login as superadmin
+  [ ] 10. Go to Superadmin → Requests
+  [ ] 11. Find the test request
+  [ ] 12. Click "Approve" or "Reject"
+  [ ] 13. Add review notes
+  [ ] 14. Verify status updates
+
+-----------------------------------------------------------------
+CRITICAL ISSUES TO WATCH FOR:
+-----------------------------------------------------------------
+1. UUID showing instead of Asset#/WO# in tables
+2. Changes not appearing after update (need page refresh)
+3. Old form data appearing when opening new form
+4. Dropdowns not populating
+5. Error messages instead of success
+6. Fields not updating (especially location, parent asset, WO#)
+
+-----------------------------------------------------------------
+IF ANY TEST FAILS:
+-----------------------------------------------------------------
+1. Note which test failed
+2. Check browser console (F12) for errors
+3. Check backend terminal for errors
+4. Report the exact issue and I'll fix it
+
+-----------------------------------------------------------------
+EXPECTED RESULTS:
+-----------------------------------------------------------------
+✓ All creates work
+✓ All updates work and show immediately
+✓ All forms reset properly
+✓ All dropdowns populate
+✓ No UUIDs visible to users
+✓ Relationships work correctly
+✓ Search works across all relevant fields
+
+=================================================================
+Start testing and let me know if ANY test fails!
+=================================================================
+

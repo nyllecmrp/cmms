@@ -52,6 +52,16 @@ export default function WorkOrderForm({ isOpen, onClose, onSuccess, workOrder }:
           // Fetch users
           const usersData = await api.getUsers(organizationId);
           setUsers(usersData as any[]);
+
+          // Auto-generate work order number for new work orders
+          if (!workOrder) {
+            const workOrdersData = await api.getWorkOrders(organizationId);
+            const workOrders = workOrdersData as any[];
+            const year = new Date().getFullYear();
+            const count = workOrders.filter(wo => wo.workOrderNumber?.startsWith(`WO-${year}`)).length + 1;
+            const autoNumber = `WO-${year}-${String(count).padStart(3, '0')}`;
+            setFormData(prev => ({ ...prev, workOrderNumber: autoNumber }));
+          }
         } catch (err) {
           console.error('Failed to fetch data:', err);
         }
@@ -95,24 +105,67 @@ export default function WorkOrderForm({ isOpen, onClose, onSuccess, workOrder }:
       const user = userData ? JSON.parse(userData) : null;
       const organizationId = user?.organizationId || 'org-test-1';
 
-      const payload = {
-        organizationId,
-        createdById: user?.id || '',
-        ...formData,
-        assetId: formData.assetId || undefined,
-        assignedToId: formData.assignedToId || undefined,
-        dueDate: formData.dueDate || undefined,
-      };
-
       if (workOrder?.id) {
         // Update existing work order
-        await api.updateWorkOrder(workOrder.id, payload);
+        console.log('Updating work order ID:', workOrder.id);
+        console.log('Update payload:', {
+          organizationId,
+          title: formData.title,
+          description: formData.description || undefined,
+          priority: formData.priority,
+          status: formData.status,
+          assetId: formData.assetId || undefined,
+          assignedToId: formData.assignedToId || undefined,
+          scheduledEnd: formData.dueDate || undefined,
+        });
+        
+        await api.updateWorkOrder(workOrder.id, {
+          organizationId,
+          workOrderNumber: formData.workOrderNumber,
+          title: formData.title,
+          description: formData.description || undefined,
+          priority: formData.priority,
+          status: formData.status,
+          assetId: formData.assetId || undefined,
+          assignedToId: formData.assignedToId || undefined,
+          scheduledEnd: formData.dueDate || undefined,
+        });
+        
+        console.log('Update API call completed');
       } else {
         // Create new work order
-        await api.createWorkOrder(payload);
+        console.log('Creating new work order...');
+        await api.createWorkOrder({
+          organizationId,
+          createdById: user?.id || '',
+          workOrderNumber: formData.workOrderNumber,
+          title: formData.title,
+          description: formData.description || undefined,
+          priority: formData.priority,
+          status: formData.status,
+          assetId: formData.assetId || undefined,
+          assignedToId: formData.assignedToId || undefined,
+          scheduledEnd: formData.dueDate || undefined,
+        });
+        console.log('Create API call completed');
       }
 
-      onSuccess();
+      // Reset form after successful submission
+      setFormData({
+        workOrderNumber: '',
+        title: '',
+        description: '',
+        priority: 'medium',
+        status: 'open',
+        assetId: '',
+        assignedToId: '',
+        dueDate: '',
+      });
+      setError('');
+
+      console.log('Calling onSuccess callback...');
+      await onSuccess();
+      console.log('Calling onClose...');
       onClose();
     } catch (err: any) {
       setError(err.message || 'Failed to save work order');
@@ -142,6 +195,7 @@ export default function WorkOrderForm({ isOpen, onClose, onSuccess, workOrder }:
             placeholder="e.g., WO-2025-001"
             required
           />
+          <p className="text-xs text-gray-500 mt-1">Auto-filled, but you can edit if needed</p>
         </div>
 
         <div>

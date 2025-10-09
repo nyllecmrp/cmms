@@ -22,6 +22,8 @@ export default function SuperadminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -94,6 +96,61 @@ export default function SuperadminPage() {
       setOrganizations(data as Organization[]);
     } catch (err: any) {
       alert(`❌ Failed to create organization: ${err.message || 'Unknown error'}`);
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  const handleEditOrganization = (org: Organization) => {
+    setSelectedOrg(org);
+    setFormData({
+      name: org.name,
+      email: '',
+      phone: '',
+      address: '',
+      city: '',
+      industry: '',
+      tier: org.tier,
+      maxUsers: 10,
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateOrganization = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOrg) return;
+    
+    setSaveLoading(true);
+    
+    try {
+      // Update organization via API
+      await api.updateOrganization(selectedOrg.id, {
+        ...formData,
+        country: 'Philippines',
+      });
+      
+      // Show success message
+      alert(`✅ Organization "${formData.name}" updated successfully!`);
+      
+      // Reset and close modal
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        address: '',
+        city: '',
+        industry: '',
+        tier: 'starter',
+        maxUsers: 10,
+      });
+      setSelectedOrg(null);
+      setIsEditModalOpen(false);
+      
+      // Refresh organizations list
+      const data = await api.getOrganizations();
+      setOrganizations(data as Organization[]);
+    } catch (err: any) {
+      alert(`❌ Failed to update organization: ${err.message || 'Unknown error'}`);
     } finally {
       setSaveLoading(false);
     }
@@ -210,7 +267,7 @@ export default function SuperadminPage() {
                           Manage Modules
                         </button>
                         <button 
-                          onClick={() => alert('Organization editing feature coming soon!')}
+                          onClick={() => handleEditOrganization(org)}
                           className="text-gray-600 hover:text-gray-800"
                         >
                           Edit
@@ -419,6 +476,170 @@ export default function SuperadminPage() {
                       disabled={saveLoading}
                     >
                       {saveLoading ? 'Creating...' : 'Create Organization'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Organization Modal */}
+        {isEditModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">Edit Organization</h2>
+                  <button
+                    onClick={() => {
+                      setIsEditModalOpen(false);
+                      setSelectedOrg(null);
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <form onSubmit={handleUpdateOrganization} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Organization Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Phone
+                      </label>
+                      <input
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Address
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        City
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.city}
+                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Industry
+                      </label>
+                      <select
+                        value={formData.industry}
+                        onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                      >
+                        <option value="">Select Industry</option>
+                        <option value="manufacturing">Manufacturing</option>
+                        <option value="healthcare">Healthcare</option>
+                        <option value="facilities">Facilities Management</option>
+                        <option value="utilities">Utilities</option>
+                        <option value="transportation">Transportation</option>
+                        <option value="hospitality">Hospitality</option>
+                        <option value="education">Education</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Subscription Tier *
+                      </label>
+                      <select
+                        value={formData.tier}
+                        onChange={(e) => setFormData({ ...formData, tier: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                        required
+                      >
+                        <option value="starter">Starter</option>
+                        <option value="professional">Professional</option>
+                        <option value="enterprise">Enterprise</option>
+                        <option value="enterprise_plus">Enterprise Plus</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Max Users *
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.maxUsers}
+                        onChange={(e) => setFormData({ ...formData, maxUsers: parseInt(e.target.value) })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                        min="1"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end space-x-3 mt-6 pt-6 border-t">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditModalOpen(false);
+                        setSelectedOrg(null);
+                      }}
+                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                      disabled={saveLoading}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+                      disabled={saveLoading}
+                    >
+                      {saveLoading ? 'Updating...' : 'Update Organization'}
                     </button>
                   </div>
                 </form>

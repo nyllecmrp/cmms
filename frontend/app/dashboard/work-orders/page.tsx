@@ -82,7 +82,14 @@ export default function WorkOrdersPage() {
   }, []);
 
   const filteredWorkOrders = workOrders.filter((wo) => {
-    const matchesSearch = wo.title.toLowerCase().includes(searchTerm.toLowerCase());
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = 
+      wo.title.toLowerCase().includes(searchLower) ||
+      wo.workOrderNumber.toLowerCase().includes(searchLower) ||
+      wo.asset?.assetNumber.toLowerCase().includes(searchLower) ||
+      wo.asset?.name.toLowerCase().includes(searchLower) ||
+      wo.assignedTo?.name?.toLowerCase().includes(searchLower) ||
+      wo.description?.toLowerCase().includes(searchLower);
     const matchesStatus = filterStatus === 'all' || wo.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
@@ -150,12 +157,19 @@ export default function WorkOrdersPage() {
 
   const handleFormSuccess = async () => {
     // Refresh work order list
+    console.log('handleFormSuccess called - refreshing work orders...');
     const userData = localStorage.getItem('user');
     const user = userData ? JSON.parse(userData) : null;
     const organizationId = user?.organizationId || 'org-test-1';
 
     const data = await api.getWorkOrders(organizationId);
-    setWorkOrders(data as WorkOrder[]);
+    console.log('Fetched updated work orders:', data);
+    console.log('First work order details:', JSON.stringify((data as any[])[0], null, 2));
+    console.log('Second work order details:', JSON.stringify((data as any[])[1], null, 2));
+    
+    // Force state update with new array reference
+    setWorkOrders([...(data as WorkOrder[])]);
+    console.log('Work orders state updated - forced new array reference');
   };
 
   return (
@@ -303,7 +317,7 @@ export default function WorkOrdersPage() {
                 {filteredWorkOrders.map((wo) => (
                   <tr key={wo.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-medium text-blue-600">{wo.id.substring(0, 8).toUpperCase()}</span>
+                      <span className="text-sm font-medium text-blue-600">{wo.workOrderNumber}</span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-medium text-gray-900">{wo.title}</div>
