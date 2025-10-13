@@ -5,7 +5,7 @@ services:
     runtime: node
     region: singapore
     plan: free
-    buildCommand: cd backend && npm install && npx prisma generate && npm run build
+    buildCommand: cd backend && npm install && cp prisma/schema.production.prisma prisma/schema.prisma && npx prisma generate && npm run build
     startCommand: cd backend && npx prisma db push --accept-data-loss && node dist/src/main.js
     envVars:
       - key: DATABASE_URL

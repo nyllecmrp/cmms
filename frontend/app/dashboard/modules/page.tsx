@@ -33,7 +33,6 @@ const AVAILABLE_MODULES: Module[] = [
     name: 'Inventory Management',
     description: 'Track spare parts, manage stock levels, and automate reordering',
     tier: 'Professional',
-    price: 2499,
     features: [
       'Multi-location inventory',
       'Stock level alerts',
@@ -48,7 +47,6 @@ const AVAILABLE_MODULES: Module[] = [
     name: 'Predictive Maintenance',
     description: 'Use AI and IoT to predict failures before they happen',
     tier: 'Enterprise',
-    price: 7999,
     features: [
       'Real-time condition monitoring',
       'Anomaly detection',
@@ -63,7 +61,6 @@ const AVAILABLE_MODULES: Module[] = [
     name: 'Calibration Management',
     description: 'Track instrument calibration schedules and maintain compliance',
     tier: 'Enterprise',
-    price: 4999,
     features: [
       'Calibration scheduling',
       'Certificate management',
@@ -78,7 +75,6 @@ const AVAILABLE_MODULES: Module[] = [
     name: 'Mobile CMMS',
     description: 'Access CMMS features from iOS and Android devices',
     tier: 'Professional',
-    price: 1999,
     features: [
       'iOS and Android apps',
       'Offline mode',
@@ -93,7 +89,6 @@ const AVAILABLE_MODULES: Module[] = [
     name: 'Reports & Analytics',
     description: 'Advanced reporting and data visualization tools',
     tier: 'Advanced',
-    price: 3499,
     features: [
       '50+ pre-built reports',
       'Custom report builder',
@@ -108,7 +103,6 @@ const AVAILABLE_MODULES: Module[] = [
     name: 'Enterprise API',
     description: 'Integrate CMMS with your existing systems',
     tier: 'Enterprise Plus',
-    price: 9999,
     features: [
       'RESTful API access',
       'Webhook support',
