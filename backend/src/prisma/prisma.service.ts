@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { PrismaLibSQL } from '@prisma/adapter-libsql';
-import { createClient } from '@libsql/client';
+import { Client, createClient } from '@libsql/client';
 
 @Injectable()
 export class PrismaService
@@ -11,7 +11,7 @@ export class PrismaService
   constructor() {
     // Use SQLite Cloud if DATABASE_URL_CLOUD is set (production)
     if (process.env.DATABASE_URL_CLOUD) {
-      const libsql = createClient({
+      const libsql: Client = createClient({
         url: process.env.DATABASE_URL_CLOUD,
       });
       const adapter = new PrismaLibSQL(libsql);
