@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -36,11 +36,11 @@ model User {
   moduleAccessLogs        ModuleAccessLog[]
   moduleRequestsRequested ModuleRequest[] @relation("ModuleRequestedBy")
   moduleRequestsReviewed  ModuleRequest[] @relation("ModuleReviewedBy")
-  createdAssets           Asset[] @relation("CreatedBy")
-  createdWorkOrders       WorkOrder[] @relation("CreatedBy")
-  assignedWorkOrders      WorkOrder[] @relation("AssignedTo")
-  createdPMSchedules      PMSchedule[] @relation("PMScheduleCreatedBy")
-  assignedPMSchedules     PMSchedule[] @relation("PMScheduleAssignedTo")
+  createdAssets           Asset[]         @relation("AssetCreatedBy")
+  assignedWorkOrders      WorkOrder[]     @relation("WorkOrderAssignedTo")
+  createdWorkOrders       WorkOrder[]     @relation("WorkOrderCreatedBy")
+  assignedPMSchedules     PMSchedule[]    @relation("PMScheduleAssignedTo")
+  createdPMSchedules      PMSchedule[]    @relation("PMScheduleCreatedBy")
 
   @@index([organizationId])
   @@index([email])
@@ -210,7 +210,7 @@ model Asset {
   imageUrl          String?
   customFields      String?   // JSON for industry-specific fields
   createdById       String
-  createdBy         User      @relation("CreatedBy", fields: [createdById], references: [id])
+  createdBy         User      @relation("AssetCreatedBy", fields: [createdById], references: [id])
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -260,9 +260,9 @@ model WorkOrder {
   assetId        String?
   asset          Asset?    @relation(fields: [assetId], references: [id])
   assignedToId   String?
-  assignedTo     User?     @relation("AssignedTo", fields: [assignedToId], references: [id])
+  assignedTo     User?     @relation("WorkOrderAssignedTo", fields: [assignedToId], references: [id])
   createdById    String
-  createdBy      User      @relation("CreatedBy", fields: [createdById], references: [id])
+  createdBy      User      @relation("WorkOrderCreatedBy", fields: [createdById], references: [id])
   scheduledStart DateTime?
   scheduledEnd   DateTime?
   actualStart    DateTime?
