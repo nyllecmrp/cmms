@@ -37,10 +37,10 @@ model User {
   moduleRequestsRequested ModuleRequest[] @relation("ModuleRequestedBy")
   moduleRequestsReviewed  ModuleRequest[] @relation("ModuleReviewedBy")
   createdAssets           Asset[] @relation("CreatedBy")
-  assignedWorkOrders      WorkOrder[] @relation("AssignedTo")
   createdWorkOrders       WorkOrder[] @relation("CreatedBy")
-  assignedPMSchedules     PMSchedule[] @relation("PMScheduleAssignedTo")
+  assignedWorkOrders      WorkOrder[] @relation("AssignedTo")
   createdPMSchedules      PMSchedule[] @relation("PMScheduleCreatedBy")
+  assignedPMSchedules     PMSchedule[] @relation("PMScheduleAssignedTo")
 
   @@index([organizationId])
   @@index([email])
