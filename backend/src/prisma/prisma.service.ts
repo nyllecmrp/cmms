@@ -14,8 +14,8 @@ export class PrismaService
       const libsqlClient = createClient({
         url: process.env.DATABASE_URL_CLOUD,
       });
-      const libsqlAdapter = new PrismaLibSQL(libsqlClient);
       // @ts-ignore - Type mismatch between @libsql/client versions
+      const libsqlAdapter = new PrismaLibSQL(libsqlClient);
       super({ adapter: libsqlAdapter });
     } else {
       // Use local SQLite file for development
