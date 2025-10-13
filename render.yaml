@@ -20,7 +20,7 @@ services:
 
   # Frontend
   - type: web
-    name: cmms-frontend
+    name: cmms
     runtime: node
     region: singapore
     plan: free
