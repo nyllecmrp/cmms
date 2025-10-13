@@ -17,7 +17,7 @@ services:
         value: 3001
       - key: NODE_ENV
         value: production
-    healthCheckPath: /
+    healthCheckPath: /api
 
   # Frontend
   - type: web
@@ -33,4 +33,3 @@ services:
         sync: false
       - key: NODE_ENV
         value: production
-    healthCheckPath: /
