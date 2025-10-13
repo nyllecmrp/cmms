@@ -7,10 +7,10 @@ services:
     plan: free
     rootDirectory: backend
     buildCommand: npm install && npm run build
-    startCommand: npx prisma db push --accept-data-loss && node dist/src/main.js
+    startCommand: npx prisma migrate deploy && node dist/src/main.js
     envVars:
       - key: DATABASE_URL
-        sync: false
+        value: file:./prod.db
       - key: JWT_SECRET
         generateValue: true
       - key: PORT

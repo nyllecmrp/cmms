@@ -97,6 +97,26 @@ CREATE TABLE "ModuleAccessLog" (
 );
 
 -- CreateTable
+CREATE TABLE "ModuleRequest" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "organizationId" TEXT NOT NULL,
+    "requestedById" TEXT NOT NULL,
+    "moduleCode" TEXT NOT NULL,
+    "requestType" TEXT NOT NULL,
+    "justification" TEXT,
+    "expectedUsage" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "reviewedById" TEXT,
+    "reviewedAt" DATETIME,
+    "reviewNotes" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "ModuleRequest_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "ModuleRequest_requestedById_fkey" FOREIGN KEY ("requestedById") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "ModuleRequest_reviewedById_fkey" FOREIGN KEY ("reviewedById") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- CreateTable
 CREATE TABLE "Asset" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "organizationId" TEXT NOT NULL,
@@ -174,6 +194,32 @@ CREATE TABLE "WorkOrder" (
     CONSTRAINT "WorkOrder_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
+-- CreateTable
+CREATE TABLE "PMSchedule" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "organizationId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "assetId" TEXT,
+    "frequency" TEXT NOT NULL,
+    "frequencyValue" INTEGER NOT NULL DEFAULT 1,
+    "priority" TEXT NOT NULL DEFAULT 'medium',
+    "status" TEXT NOT NULL DEFAULT 'active',
+    "assignedToId" TEXT,
+    "lastCompleted" DATETIME,
+    "nextDue" DATETIME,
+    "tasks" TEXT,
+    "parts" TEXT,
+    "estimatedHours" REAL,
+    "createdById" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "PMSchedule_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "PMSchedule_assetId_fkey" FOREIGN KEY ("assetId") REFERENCES "Asset" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT "PMSchedule_assignedToId_fkey" FOREIGN KEY ("assignedToId") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT "PMSchedule_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
@@ -220,6 +266,15 @@ CREATE INDEX "ModuleAccessLog_userId_idx" ON "ModuleAccessLog"("userId");
 CREATE INDEX "ModuleAccessLog_moduleCode_idx" ON "ModuleAccessLog"("moduleCode");
 
 -- CreateIndex
+CREATE INDEX "ModuleRequest_organizationId_idx" ON "ModuleRequest"("organizationId");
+
+-- CreateIndex
+CREATE INDEX "ModuleRequest_requestedById_idx" ON "ModuleRequest"("requestedById");
+
+-- CreateIndex
+CREATE INDEX "ModuleRequest_status_idx" ON "ModuleRequest"("status");
+
+-- CreateIndex
 CREATE INDEX "Asset_organizationId_idx" ON "Asset"("organizationId");
 
 -- CreateIndex
@@ -248,3 +303,18 @@ CREATE INDEX "WorkOrder_assignedToId_idx" ON "WorkOrder"("assignedToId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "WorkOrder_organizationId_workOrderNumber_key" ON "WorkOrder"("organizationId", "workOrderNumber");
+
+-- CreateIndex
+CREATE INDEX "PMSchedule_organizationId_idx" ON "PMSchedule"("organizationId");
+
+-- CreateIndex
+CREATE INDEX "PMSchedule_status_idx" ON "PMSchedule"("status");
+
+-- CreateIndex
+CREATE INDEX "PMSchedule_nextDue_idx" ON "PMSchedule"("nextDue");
+
+-- CreateIndex
+CREATE INDEX "PMSchedule_assetId_idx" ON "PMSchedule"("assetId");
+
+-- CreateIndex
+CREATE INDEX "PMSchedule_assignedToId_idx" ON "PMSchedule"("assignedToId");
