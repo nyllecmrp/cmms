@@ -1,119 +1,106 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { DatabaseService } from '../../database/database.service';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class OrganizationsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private db: DatabaseService) {}
 
   async findAll() {
-    const organizations = await this.prisma.organization.findMany({
-      include: {
-        _count: {
-          select: {
-            users: true,
-            moduleLicenses: { where: { status: 'active' } },
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const organizations = await this.db.query(`
+      SELECT
+        o.id, o.name, o.email, o.phone, o.tier, o.status, o.industry, o.createdAt, o.updatedAt,
+        (SELECT COUNT(*) FROM User WHERE organizationId = o.id) as users,
+        (SELECT COUNT(*) FROM ModuleLicense WHERE organizationId = o.id AND status = 'active') as activeModules
+      FROM Organization o
+      ORDER BY o.createdAt DESC
+    `);
 
-    return organizations.map((org) => ({
-      id: org.id,
-      name: org.name,
-      email: org.email,
-      phone: org.phone,
-      tier: org.tier,
-      status: org.status,
-      industry: org.industry,
-      users: org._count.users,
-      activeModules: org._count.moduleLicenses,
-      createdAt: org.createdAt,
-      updatedAt: org.updatedAt,
-    }));
+    return organizations;
   }
 
   async findOne(id: string) {
-    const organization = await this.prisma.organization.findUnique({
-      where: { id },
-      include: {
-        users: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            status: true,
-            createdAt: true,
-          },
-        },
-        moduleLicenses: {
-          select: {
-            id: true,
-            moduleCode: true,
-            tierLevel: true,
-            status: true,
-            activatedAt: true,
-            expiresAt: true,
-          },
-        },
-        _count: {
-          select: {
-            users: true,
-            moduleLicenses: { where: { status: 'active' } },
-            assets: true,
-            workOrders: true,
-          },
-        },
-      },
-    });
+    const orgs = await this.db.query(
+      'SELECT * FROM Organization WHERE id = ?',
+      [id]
+    );
 
-    if (!organization) {
+    if (!orgs || orgs.length === 0) {
       return null;
     }
 
+    const organization = orgs[0];
+
+    const users = await this.db.query(
+      'SELECT id, email, firstName, lastName, status, createdAt FROM User WHERE organizationId = ?',
+      [id]
+    );
+
+    const moduleLicenses = await this.db.query(
+      'SELECT id, moduleCode, tierLevel, status, activatedAt, expiresAt FROM ModuleLicense WHERE organizationId = ?',
+      [id]
+    );
+
+    const counts = await this.db.query(`
+      SELECT
+        (SELECT COUNT(*) FROM User WHERE organizationId = ?) as userCount,
+        (SELECT COUNT(*) FROM ModuleLicense WHERE organizationId = ? AND status = 'active') as activeModulesCount,
+        (SELECT COUNT(*) FROM Asset WHERE organizationId = ?) as assetCount,
+        (SELECT COUNT(*) FROM WorkOrder WHERE organizationId = ?) as workOrderCount
+    `, [id, id, id, id]);
+
     return {
       ...organization,
-      userCount: organization._count.users,
-      activeModulesCount: organization._count.moduleLicenses,
-      assetCount: organization._count.assets,
-      workOrderCount: organization._count.workOrders,
+      users,
+      moduleLicenses,
+      ...counts[0],
     };
   }
 
   async create(createData: any) {
-    const organization = await this.prisma.organization.create({
-      data: {
-        name: createData.name,
-        email: createData.email,
-        phone: createData.phone,
-        address: createData.address,
-        city: createData.city,
-        country: createData.country || 'Philippines',
-        industry: createData.industry,
-        tier: createData.tier || 'starter',
-        status: 'active',
-        maxUsers: createData.maxUsers || 10,
-      },
-    });
+    const orgId = randomBytes(16).toString('hex');
 
-    return { organization, message: 'Organization created successfully' };
+    await this.db.execute(
+      `INSERT INTO Organization (id, name, email, phone, address, city, country, industry, tier, status, maxUsers, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+      [
+        orgId,
+        createData.name,
+        createData.email,
+        createData.phone,
+        createData.address,
+        createData.city,
+        createData.country || 'Philippines',
+        createData.industry,
+        createData.tier || 'starter',
+        'active',
+        createData.maxUsers || 10
+      ]
+    );
+
+    const orgs = await this.db.query('SELECT * FROM Organization WHERE id = ?', [orgId]);
+
+    return { organization: orgs[0], message: 'Organization created successfully' };
   }
 
   async update(id: string, updateData: any) {
-    const organization = await this.prisma.organization.update({
-      where: { id },
-      data: {
-        name: updateData.name,
-        email: updateData.email,
-        phone: updateData.phone,
-        address: updateData.address,
-        city: updateData.city,
-        country: updateData.country,
-        industry: updateData.industry,
-      },
-    });
+    await this.db.execute(
+      `UPDATE Organization SET name = ?, email = ?, phone = ?, address = ?, city = ?, country = ?, industry = ?, updatedAt = datetime('now')
+       WHERE id = ?`,
+      [
+        updateData.name,
+        updateData.email,
+        updateData.phone,
+        updateData.address,
+        updateData.city,
+        updateData.country,
+        updateData.industry,
+        id
+      ]
+    );
 
-    return { organization, message: 'Organization updated successfully' };
+    const orgs = await this.db.query('SELECT * FROM Organization WHERE id = ?', [id]);
+
+    return { organization: orgs[0], message: 'Organization updated successfully' };
   }
 }

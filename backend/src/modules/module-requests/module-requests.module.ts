@@ -1,10 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ModuleRequestsService } from './module-requests.service';
 import { ModuleRequestsController } from './module-requests.controller';
-import { PrismaModule } from '../../prisma/prisma.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [],
   providers: [ModuleRequestsService],
   controllers: [ModuleRequestsController],
   exports: [ModuleRequestsService],

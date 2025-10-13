@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { DatabaseService } from '../../database/database.service';
+import { randomBytes } from 'crypto';
 import {
   ModuleCode,
   ModuleStatus,
@@ -33,34 +34,37 @@ export interface ModuleLicenseInfo {
 
 @Injectable()
 export class ModuleLicensingService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private db: DatabaseService) {}
 
   /**
    * Get all modules with their licensing status for an organization
    */
   async getOrganizationModules(organizationId: string): Promise<ModuleLicenseInfo[]> {
-    const organization = await this.prisma.organization.findUnique({
-      where: { id: organizationId },
-      include: {
-        moduleLicenses: true,
-      },
-    });
+    const organizations = await this.db.query(
+      'SELECT * FROM Organization WHERE id = ?',
+      [organizationId]
+    );
 
-    if (!organization) {
+    if (organizations.length === 0) {
       throw new NotFoundException('Organization not found');
     }
 
+    const licenses = await this.db.query(
+      'SELECT * FROM ModuleLicense WHERE organizationId = ?',
+      [organizationId]
+    );
+
     const licenseMap = new Map(
-      organization.moduleLicenses.map((license) => [license.moduleCode, license]),
+      licenses.map((license) => [license.moduleCode, license]),
     );
 
     return Object.values(MODULE_DEFINITIONS).map((moduleDef) => {
-      const license = licenseMap.get(moduleDef.code);
+      const license: any = licenseMap.get(moduleDef.code);
       const isCore = CORE_MODULES.includes(moduleDef.code as ModuleCode);
       const isActive =
         isCore ||
         (license?.status === ModuleStatus.ACTIVE &&
-          (!license.expiresAt || new Date(license.expiresAt) > new Date()));
+          (!license?.expiresAt || new Date(license.expiresAt) > new Date()));
 
       return {
         moduleCode: moduleDef.code,
@@ -86,16 +90,18 @@ export class ModuleLicensingService {
       return true;
     }
 
-    const license = await this.prisma.moduleLicense.findUnique({
-      where: {
-        organizationId_moduleCode: {
-          organizationId,
-          moduleCode,
-        },
-      },
-    });
+    const licenses = await this.db.query(
+      'SELECT * FROM ModuleLicense WHERE organizationId = ? AND moduleCode = ?',
+      [organizationId, moduleCode]
+    );
 
-    if (!license || license.status !== ModuleStatus.ACTIVE) {
+    if (licenses.length === 0) {
+      return false;
+    }
+
+    const license = licenses[0];
+
+    if (license.status !== ModuleStatus.ACTIVE) {
       return false;
     }
 
@@ -114,11 +120,12 @@ export class ModuleLicensingService {
     const { organizationId, moduleCode, expiresAt, maxUsers, usageLimits, activatedById } = data;
 
     // Validate organization exists
-    const organization = await this.prisma.organization.findUnique({
-      where: { id: organizationId },
-    });
+    const organizations = await this.db.query(
+      'SELECT * FROM Organization WHERE id = ?',
+      [organizationId]
+    );
 
-    if (!organization) {
+    if (organizations.length === 0) {
       throw new NotFoundException('Organization not found');
     }
 
@@ -135,43 +142,73 @@ export class ModuleLicensingService {
       }
     }
 
-    // Create or update license
-    const license = await this.prisma.moduleLicense.upsert({
-      where: {
-        organizationId_moduleCode: {
+    // Check if license exists
+    const existingLicenses = await this.db.query(
+      'SELECT * FROM ModuleLicense WHERE organizationId = ? AND moduleCode = ?',
+      [organizationId, moduleCode]
+    );
+
+    let license;
+
+    if (existingLicenses.length > 0) {
+      // Update existing license
+      await this.db.execute(
+        `UPDATE ModuleLicense
+        SET status = ?, expiresAt = ?, maxUsers = ?, usageLimits = ?,
+            activatedById = ?, activatedAt = datetime('now'), updatedAt = datetime('now')
+        WHERE organizationId = ? AND moduleCode = ?`,
+        [
+          ModuleStatus.ACTIVE,
+          expiresAt ? expiresAt.toISOString() : null,
+          maxUsers || null,
+          usageLimits ? JSON.stringify(usageLimits) : null,
+          activatedById,
           organizationId,
           moduleCode,
-        },
-      },
-      create: {
-        organizationId,
-        moduleCode,
-        status: ModuleStatus.ACTIVE,
-        tierLevel: moduleDef.tier,
-        expiresAt,
-        maxUsers,
-        usageLimits: usageLimits ? JSON.stringify(usageLimits) : null,
-        activatedById,
-      },
-      update: {
-        status: ModuleStatus.ACTIVE,
-        expiresAt,
-        maxUsers,
-        usageLimits: usageLimits ? JSON.stringify(usageLimits) : null,
-        activatedById,
-        activatedAt: new Date(),
-      },
-    });
+        ]
+      );
+
+      const updatedLicenses = await this.db.query(
+        'SELECT * FROM ModuleLicense WHERE organizationId = ? AND moduleCode = ?',
+        [organizationId, moduleCode]
+      );
+      license = updatedLicenses[0];
+    } else {
+      // Create new license
+      const id = randomBytes(16).toString('hex');
+      await this.db.execute(
+        `INSERT INTO ModuleLicense (
+          id, organizationId, moduleCode, status, tierLevel, expiresAt, maxUsers,
+          usageLimits, activatedById, activatedAt, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), datetime('now'))`,
+        [
+          id,
+          organizationId,
+          moduleCode,
+          ModuleStatus.ACTIVE,
+          moduleDef.tier,
+          expiresAt ? expiresAt.toISOString() : null,
+          maxUsers || null,
+          usageLimits ? JSON.stringify(usageLimits) : null,
+          activatedById,
+        ]
+      );
+
+      const newLicenses = await this.db.query(
+        'SELECT * FROM ModuleLicense WHERE id = ?',
+        [id]
+      );
+      license = newLicenses[0];
+    }
 
     // Log activation
-    await this.prisma.moduleAccessLog.create({
-      data: {
-        organizationId,
-        userId: activatedById,
-        moduleCode,
-        action: 'activated',
-      },
-    });
+    const logId = randomBytes(16).toString('hex');
+    await this.db.execute(
+      `INSERT INTO ModuleAccessLog (
+        id, organizationId, userId, moduleCode, action, createdAt
+      ) VALUES (?, ?, ?, ?, ?, datetime('now'))`,
+      [logId, organizationId, activatedById, moduleCode, 'activated']
+    );
 
     return license;
   }
@@ -185,41 +222,30 @@ export class ModuleLicensingService {
       throw new BadRequestException('Cannot deactivate core modules');
     }
 
-    const license = await this.prisma.moduleLicense.findUnique({
-      where: {
-        organizationId_moduleCode: {
-          organizationId,
-          moduleCode,
-        },
-      },
-    });
+    const licenses = await this.db.query(
+      'SELECT * FROM ModuleLicense WHERE organizationId = ? AND moduleCode = ?',
+      [organizationId, moduleCode]
+    );
 
-    if (!license) {
+    if (licenses.length === 0) {
       throw new NotFoundException('Module license not found');
     }
 
     // Update license status
-    await this.prisma.moduleLicense.update({
-      where: {
-        organizationId_moduleCode: {
-          organizationId,
-          moduleCode,
-        },
-      },
-      data: {
-        status: ModuleStatus.INACTIVE,
-      },
-    });
+    await this.db.execute(
+      `UPDATE ModuleLicense SET status = ?, updatedAt = datetime('now')
+      WHERE organizationId = ? AND moduleCode = ?`,
+      [ModuleStatus.INACTIVE, organizationId, moduleCode]
+    );
 
     // Log deactivation
-    await this.prisma.moduleAccessLog.create({
-      data: {
-        organizationId,
-        userId: deactivatedById,
-        moduleCode,
-        action: 'deactivated',
-      },
-    });
+    const logId = randomBytes(16).toString('hex');
+    await this.db.execute(
+      `INSERT INTO ModuleAccessLog (
+        id, organizationId, userId, moduleCode, action, createdAt
+      ) VALUES (?, ?, ?, ?, ?, datetime('now'))`,
+      [logId, organizationId, deactivatedById, moduleCode, 'deactivated']
+    );
 
     return { success: true, message: `Module ${moduleCode} deactivated` };
   }
@@ -256,10 +282,10 @@ export class ModuleLicensingService {
     }
 
     // Update organization tier
-    await this.prisma.organization.update({
-      where: { id: organizationId },
-      data: { tier },
-    });
+    await this.db.execute(
+      `UPDATE Organization SET tier = ?, updatedAt = datetime('now') WHERE id = ?`,
+      [tier, organizationId]
+    );
 
     return results;
   }
@@ -271,27 +297,58 @@ export class ModuleLicensingService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + days);
 
-    const license = await this.prisma.moduleLicense.upsert({
-      where: {
-        organizationId_moduleCode: {
+    // Check if license exists
+    const existingLicenses = await this.db.query(
+      'SELECT * FROM ModuleLicense WHERE organizationId = ? AND moduleCode = ?',
+      [organizationId, moduleCode]
+    );
+
+    let license;
+
+    if (existingLicenses.length > 0) {
+      // Update existing license
+      await this.db.execute(
+        `UPDATE ModuleLicense
+        SET status = ?, expiresAt = ?, activatedAt = datetime('now'), updatedAt = datetime('now')
+        WHERE organizationId = ? AND moduleCode = ?`,
+        [
+          ModuleStatus.TRIAL,
+          expiresAt.toISOString(),
           organizationId,
           moduleCode,
-        },
-      },
-      create: {
-        organizationId,
-        moduleCode,
-        status: ModuleStatus.TRIAL,
-        tierLevel: MODULE_DEFINITIONS[moduleCode].tier,
-        expiresAt,
-        activatedById: userId,
-      },
-      update: {
-        status: ModuleStatus.TRIAL,
-        expiresAt,
-        activatedAt: new Date(),
-      },
-    });
+        ]
+      );
+
+      const updatedLicenses = await this.db.query(
+        'SELECT * FROM ModuleLicense WHERE organizationId = ? AND moduleCode = ?',
+        [organizationId, moduleCode]
+      );
+      license = updatedLicenses[0];
+    } else {
+      // Create new license
+      const id = randomBytes(16).toString('hex');
+      await this.db.execute(
+        `INSERT INTO ModuleLicense (
+          id, organizationId, moduleCode, status, tierLevel, expiresAt,
+          activatedById, activatedAt, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), datetime('now'))`,
+        [
+          id,
+          organizationId,
+          moduleCode,
+          ModuleStatus.TRIAL,
+          MODULE_DEFINITIONS[moduleCode].tier,
+          expiresAt.toISOString(),
+          userId,
+        ]
+      );
+
+      const newLicenses = await this.db.query(
+        'SELECT * FROM ModuleLicense WHERE id = ?',
+        [id]
+      );
+      license = newLicenses[0];
+    }
 
     return license;
   }
@@ -300,17 +357,17 @@ export class ModuleLicensingService {
    * Get module usage statistics
    */
   async getModuleUsageStats(organizationId: string, moduleCode?: string) {
-    const where: any = { organizationId };
+    let query = 'SELECT * FROM ModuleUsageTracking WHERE organizationId = ?';
+    const params: any[] = [organizationId];
+
     if (moduleCode) {
-      where.moduleCode = moduleCode;
+      query += ' AND moduleCode = ?';
+      params.push(moduleCode);
     }
 
-    const usage = await this.prisma.moduleUsageTracking.findMany({
-      where,
-      orderBy: { date: 'desc' },
-      take: 30, // Last 30 days
-    });
+    query += ' ORDER BY date DESC LIMIT 30';
 
+    const usage = await this.db.query(query, params);
     return usage;
   }
 
@@ -330,30 +387,73 @@ export class ModuleLicensingService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Note: SQLite doesn't support composite unique constraints well
-    // For now, use findFirst + create/update pattern
-    const existing = await this.prisma.moduleUsageTracking.findFirst({
-      where: {
-        organizationId,
-        moduleCode,
-        date: today,
-      },
-    });
+    // Check if record exists for today
+    const existing = await this.db.query(
+      `SELECT * FROM ModuleUsageTracking
+      WHERE organizationId = ? AND moduleCode = ? AND date = ?`,
+      [organizationId, moduleCode, today.toISOString()]
+    );
 
-    if (existing) {
-      return this.prisma.moduleUsageTracking.update({
-        where: { id: existing.id },
-        data: metrics,
-      });
+    if (existing.length > 0) {
+      // Update existing record
+      const updates: string[] = [];
+      const values: any[] = [];
+
+      if (metrics.activeUsers !== undefined) {
+        updates.push('activeUsers = ?');
+        values.push(metrics.activeUsers);
+      }
+      if (metrics.transactions !== undefined) {
+        updates.push('transactions = ?');
+        values.push(metrics.transactions);
+      }
+      if (metrics.apiCalls !== undefined) {
+        updates.push('apiCalls = ?');
+        values.push(metrics.apiCalls);
+      }
+      if (metrics.storageUsed !== undefined) {
+        updates.push('storageUsed = ?');
+        values.push(metrics.storageUsed);
+      }
+
+      updates.push('updatedAt = datetime(\'now\')');
+      values.push(existing[0].id);
+
+      await this.db.execute(
+        `UPDATE ModuleUsageTracking SET ${updates.join(', ')} WHERE id = ?`,
+        values
+      );
+
+      const updated = await this.db.query(
+        'SELECT * FROM ModuleUsageTracking WHERE id = ?',
+        [existing[0].id]
+      );
+      return updated[0];
     } else {
-      return this.prisma.moduleUsageTracking.create({
-        data: {
+      // Create new record
+      const id = randomBytes(16).toString('hex');
+      await this.db.execute(
+        `INSERT INTO ModuleUsageTracking (
+          id, organizationId, moduleCode, date, activeUsers, transactions,
+          apiCalls, storageUsed, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+        [
+          id,
           organizationId,
           moduleCode,
-          date: today,
-          ...metrics,
-        },
-      });
+          today.toISOString(),
+          metrics.activeUsers || null,
+          metrics.transactions || null,
+          metrics.apiCalls || null,
+          metrics.storageUsed || null,
+        ]
+      );
+
+      const created = await this.db.query(
+        'SELECT * FROM ModuleUsageTracking WHERE id = ?',
+        [id]
+      );
+      return created[0];
     }
   }
 }

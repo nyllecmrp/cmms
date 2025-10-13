@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { PrismaModule } from './prisma/prisma.module';
+import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AssetsModule } from './modules/assets/assets.module';
 import { WorkOrdersModule } from './modules/work-orders/work-orders.module';
@@ -14,7 +14,7 @@ import { PMSchedulesModule } from './modules/pm-schedules/pm-schedules.module';
 
 @Module({
   imports: [
-    PrismaModule,
+    DatabaseModule,
     AuthModule,
     AssetsModule,
     WorkOrdersModule,

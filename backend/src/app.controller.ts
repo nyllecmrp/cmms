@@ -1,13 +1,14 @@
 import { Controller, Get, Post, Query } from '@nestjs/common';
 import { AppService } from './app.service';
-import { PrismaService } from './prisma/prisma.service';
+import { DatabaseService } from './database/database.service';
 import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 
 @Controller()
 export class AppController {
   constructor(
     private readonly appService: AppService,
-    private readonly prisma: PrismaService,
+    private readonly db: DatabaseService,
   ) {}
 
   @Get()
@@ -19,7 +20,7 @@ export class AppController {
   async seedDatabase(@Query('secret') secret?: string) {
     // Simple secret protection - only allow if correct secret is provided
     const SEED_SECRET = process.env.SEED_SECRET || 'my-secret-seed-key-2025';
-    
+
     if (secret !== SEED_SECRET) {
       return {
         success: false,
@@ -30,760 +31,572 @@ export class AppController {
       console.log('🌱 Starting seed...');
 
       // Create basic roles (no organization = system-wide)
-      const adminRole = await this.prisma.role.upsert({
-        where: { id: 'admin' },
-        update: {},
-        create: {
-          id: 'admin',
-          name: 'Administrator',
-          description: 'Full access to all modules and settings',
-          permissions: JSON.stringify(['all']),
-        },
-      });
-
-      const managerRole = await this.prisma.role.upsert({
-        where: { id: 'manager' },
-        update: {},
-        create: {
-          id: 'manager',
-          name: 'Manager',
-          description: 'Access to operations, reporting, and team management',
-          permissions: JSON.stringify(['work-orders', 'assets', 'reports', 'users', 'inventory']),
-        },
-      });
-
-      const technicianRole = await this.prisma.role.upsert({
-        where: { id: 'technician' },
-        update: {},
-        create: {
-          id: 'technician',
-          name: 'Technician',
-          description: 'Access to work orders, assets, and field operations',
-          permissions: JSON.stringify(['work-orders', 'assets', 'preventive-maintenance']),
-        },
-      });
-
-      const viewerRole = await this.prisma.role.upsert({
-        where: { id: 'viewer' },
-        update: {},
-        create: {
-          id: 'viewer',
-          name: 'Viewer',
-          description: 'Read-only access to reports and dashboards',
-          permissions: JSON.stringify(['reports']),
-        },
-      });
+      await this.upsertRole('admin', 'Administrator', 'Full access to all modules and settings', JSON.stringify(['all']));
+      await this.upsertRole('manager', 'Manager', 'Access to operations, reporting, and team management', JSON.stringify(['work-orders', 'assets', 'reports', 'users', 'inventory']));
+      await this.upsertRole('technician', 'Technician', 'Access to work orders, assets, and field operations', JSON.stringify(['work-orders', 'assets', 'preventive-maintenance']));
+      await this.upsertRole('viewer', 'Viewer', 'Read-only access to reports and dashboards', JSON.stringify(['reports']));
 
       console.log('✅ Roles created');
 
       // Create test organizations
-      const org1 = await this.prisma.organization.upsert({
-        where: { id: 'org-test-1' },
-        update: {},
-        create: {
-          id: 'org-test-1',
-          name: 'Acme Manufacturing',
-          email: 'admin@acme.com',
-          phone: '+63 2 1234 5678',
-          city: 'Manila',
-          country: 'Philippines',
-          industry: 'manufacturing',
-          tier: 'professional',
-          status: 'active',
-          maxUsers: 25,
-        },
-      });
+      const org1Id = 'org-test-1';
+      const org2Id = 'org-test-2';
 
-      const org2 = await this.prisma.organization.upsert({
-        where: { id: 'org-test-2' },
-        update: {},
-        create: {
-          id: 'org-test-2',
-          name: 'Metro Hospital',
-          email: 'admin@metrohospital.ph',
-          phone: '+63 2 8765 4321',
-          city: 'Quezon City',
-          country: 'Philippines',
-          industry: 'healthcare',
-          tier: 'enterprise',
-          status: 'active',
-          maxUsers: 100,
-        },
-      });
+      await this.upsertOrganization(
+        org1Id,
+        'Acme Manufacturing',
+        'admin@acme.com',
+        '+63 2 1234 5678',
+        'Manila',
+        'Philippines',
+        'manufacturing',
+        'professional',
+        'active',
+        25
+      );
 
-      // Create superadmin user
+      await this.upsertOrganization(
+        org2Id,
+        'Metro Hospital',
+        'admin@metrohospital.ph',
+        '+63 2 8765 4321',
+        'Quezon City',
+        'Philippines',
+        'healthcare',
+        'enterprise',
+        'active',
+        100
+      );
+
+      // Create users
       const hashedPassword = await bcrypt.hash('admin123', 10);
 
-      await this.prisma.user.upsert({
-        where: { email: 'superadmin@cmms.com' },
-        update: {},
-        create: {
-          email: 'superadmin@cmms.com',
-          password: hashedPassword,
-          firstName: 'Super',
-          lastName: 'Admin',
-          phone: '+63 917 123 4567',
-          status: 'active',
-          isSuperAdmin: true,
-        },
-      });
+      // Create superadmin user
+      await this.upsertUser(
+        'superadmin@cmms.com',
+        hashedPassword,
+        'Super',
+        'Admin',
+        '+63 917 123 4567',
+        'active',
+        null,
+        null,
+        true
+      );
 
-      await this.prisma.user.upsert({
-        where: { email: 'admin@acme.com' },
-        update: { roleId: 'admin' }, // Add role to existing user
-        create: {
-          email: 'admin@acme.com',
-          password: hashedPassword,
-          firstName: 'John',
-          lastName: 'Doe',
-          phone: '+63 917 234 5678',
-          status: 'active',
-          roleId: 'admin',
-          organizationId: org1.id,
-          isSuperAdmin: false,
-        },
-      });
+      // Create Acme admin user
+      const acmeAdminId = await this.upsertUser(
+        'admin@acme.com',
+        hashedPassword,
+        'John',
+        'Doe',
+        '+63 917 234 5678',
+        'active',
+        'admin',
+        org1Id,
+        false
+      );
 
-      const hospitalAdmin = await this.prisma.user.upsert({
-        where: { email: 'admin@metrohospital.ph' },
-        update: { roleId: 'admin' }, // Add role to existing user
-        create: {
-          email: 'admin@metrohospital.ph',
-          password: hashedPassword,
-          firstName: 'Maria',
-          lastName: 'Santos',
-          phone: '+63 917 345 6789',
-          status: 'active',
-          roleId: 'admin',
-          organizationId: org2.id,
-          isSuperAdmin: false,
-        },
-      });
+      // Create Metro Hospital admin user
+      const hospitalAdminId = await this.upsertUser(
+        'admin@metrohospital.ph',
+        hashedPassword,
+        'Maria',
+        'Santos',
+        '+63 917 345 6789',
+        'active',
+        'admin',
+        org2Id,
+        false
+      );
 
       // Create Technician user for Metro Hospital
-      const hospitalTech = await this.prisma.user.upsert({
-        where: { email: 'tech@metrohospital.ph' },
-        update: { roleId: 'technician' },
-        create: {
-          email: 'tech@metrohospital.ph',
-          password: hashedPassword,
-          firstName: 'Jose',
-          lastName: 'Cruz',
-          phone: '+63 917 456 7890',
-          status: 'active',
-          roleId: 'technician',
-          organizationId: org2.id,
-          isSuperAdmin: false,
-        },
-      });
+      const hospitalTechId = await this.upsertUser(
+        'tech@metrohospital.ph',
+        hashedPassword,
+        'Jose',
+        'Cruz',
+        '+63 917 456 7890',
+        'active',
+        'technician',
+        org2Id,
+        false
+      );
 
       // Create Manager user for Acme
-      const manager1 = await this.prisma.user.upsert({
-        where: { email: 'manager@acme.com' },
-        update: { roleId: 'manager' },
-        create: {
-          email: 'manager@acme.com',
-          password: hashedPassword,
-          firstName: 'Maria',
-          lastName: 'Lopez',
-          phone: '+63 917 345 1234',
-          status: 'active',
-          roleId: 'manager',
-          organizationId: org1.id,
-          isSuperAdmin: false,
-        },
-      });
+      await this.upsertUser(
+        'manager@acme.com',
+        hashedPassword,
+        'Maria',
+        'Lopez',
+        '+63 917 345 1234',
+        'active',
+        'manager',
+        org1Id,
+        false
+      );
 
       // Create technician users for Acme
-      const tech1 = await this.prisma.user.upsert({
-        where: { email: 'tech1@acme.com' },
-        update: { roleId: 'technician' },
-        create: {
-          email: 'tech1@acme.com',
-          password: hashedPassword,
-          firstName: 'Juan',
-          lastName: 'Cruz',
-          phone: '+63 917 456 7890',
-          status: 'active',
-          roleId: 'technician',
-          organizationId: org1.id,
-          isSuperAdmin: false,
-        },
-      });
+      const tech1Id = await this.upsertUser(
+        'tech1@acme.com',
+        hashedPassword,
+        'Juan',
+        'Cruz',
+        '+63 917 456 7890',
+        'active',
+        'technician',
+        org1Id,
+        false
+      );
 
-      const tech2 = await this.prisma.user.upsert({
-        where: { email: 'tech2@acme.com' },
-        update: { roleId: 'technician' },
-        create: {
-          email: 'tech2@acme.com',
-          password: hashedPassword,
-          firstName: 'Ana',
-          lastName: 'Reyes',
-          phone: '+63 917 567 8901',
-          status: 'active',
-          roleId: 'technician',
-          organizationId: org1.id,
-          isSuperAdmin: false,
-        },
-      });
+      const tech2Id = await this.upsertUser(
+        'tech2@acme.com',
+        hashedPassword,
+        'Ana',
+        'Reyes',
+        '+63 917 567 8901',
+        'active',
+        'technician',
+        org1Id,
+        false
+      );
 
       // Create Viewer user for Acme
-      const viewer1 = await this.prisma.user.upsert({
-        where: { email: 'viewer@acme.com' },
-        update: { roleId: 'viewer' },
-        create: {
-          email: 'viewer@acme.com',
-          password: hashedPassword,
-          firstName: 'Pedro',
-          lastName: 'Garcia',
-          phone: '+63 917 789 0123',
-          status: 'active',
-          roleId: 'viewer',
-          organizationId: org1.id,
-          isSuperAdmin: false,
-        },
-      });
+      await this.upsertUser(
+        'viewer@acme.com',
+        hashedPassword,
+        'Pedro',
+        'Garcia',
+        '+63 917 789 0123',
+        'active',
+        'viewer',
+        org1Id,
+        false
+      );
 
       console.log('✅ Users created with different roles');
 
       // Create locations for Acme
-      const loc1 = await this.prisma.location.upsert({
-        where: { id: 'loc-1' },
-        update: {},
-        create: {
-          id: 'loc-1',
-          organizationId: org1.id,
-          name: 'Building A - Production Floor',
-          type: 'Building',
-          address: '123 Industrial Ave',
-          city: 'Manila',
-        },
-      });
+      const loc1Id = 'loc-1';
+      const loc2Id = 'loc-2';
+      const loc3Id = 'loc-3';
 
-      const loc2 = await this.prisma.location.upsert({
-        where: { id: 'loc-2' },
-        update: {},
-        create: {
-          id: 'loc-2',
-          organizationId: org1.id,
-          name: 'Building B - Warehouse',
-          type: 'Building',
-          address: '125 Industrial Ave',
-          city: 'Manila',
-        },
-      });
-
-      const loc3 = await this.prisma.location.upsert({
-        where: { id: 'loc-3' },
-        update: {},
-        create: {
-          id: 'loc-3',
-          organizationId: org1.id,
-          name: 'Building C - Maintenance Shop',
-          type: 'Building',
-          address: '127 Industrial Ave',
-          city: 'Manila',
-        },
-      });
+      await this.upsertLocation(loc1Id, org1Id, 'Building A - Production Floor', 'Building', '123 Industrial Ave', 'Manila');
+      await this.upsertLocation(loc2Id, org1Id, 'Building B - Warehouse', 'Building', '125 Industrial Ave', 'Manila');
+      await this.upsertLocation(loc3Id, org1Id, 'Building C - Maintenance Shop', 'Building', '127 Industrial Ave', 'Manila');
 
       console.log('✅ Locations created');
 
-      // Get the admin user for createdBy
-      const adminUser = await this.prisma.user.findUnique({
-        where: { email: 'admin@acme.com' },
-      });
-
-      if (!adminUser) {
-        throw new Error('Admin user not found');
-      }
-
       // Create assets for Acme
-      const asset1 = await this.prisma.asset.upsert({
-        where: { 
-          organizationId_assetNumber: {
-            organizationId: org1.id,
-            assetNumber: 'PUMP-001'
-          }
-        },
-        update: {},
-        create: {
-          id: 'asset-1',
-          organizationId: org1.id,
-          createdById: adminUser.id,
-          assetNumber: 'PUMP-001',
-          name: 'Hydraulic Pump Unit A',
-          category: 'Equipment',
-          status: 'operational',
-          manufacturer: 'Bosch Rexroth',
-          model: 'A10VSO',
-          serialNumber: 'BR-2024-001',
-          locationId: loc1.id,
-          description: 'Main production line hydraulic pump',
-          criticality: 'high',
-        },
-      });
+      const asset1Id = 'asset-1';
+      const asset2Id = 'asset-2';
+      const asset3Id = 'asset-3';
+      const asset4Id = 'asset-4';
+      const asset5Id = 'asset-5';
+      const asset6Id = 'asset-6';
 
-      const asset2 = await this.prisma.asset.upsert({
-        where: { 
-          organizationId_assetNumber: {
-            organizationId: org1.id,
-            assetNumber: 'CONV-001'
-          }
-        },
-        update: {},
-        create: {
-          id: 'asset-2',
-          organizationId: org1.id,
-          createdById: adminUser.id,
-          assetNumber: 'CONV-001',
-          name: 'Conveyor Belt System 1',
-          category: 'Equipment',
-          status: 'operational',
-          manufacturer: 'Siemens',
-          model: 'CONV-500',
-          serialNumber: 'SI-2024-002',
-          locationId: loc1.id,
-          description: 'Primary conveyor for production line',
-          criticality: 'medium',
-        },
-      });
+      await this.upsertAsset(
+        asset1Id,
+        org1Id,
+        acmeAdminId,
+        'PUMP-001',
+        'Hydraulic Pump Unit A',
+        'Equipment',
+        'operational',
+        'Bosch Rexroth',
+        'A10VSO',
+        'BR-2024-001',
+        loc1Id,
+        'Main production line hydraulic pump',
+        'high'
+      );
 
-      const asset3 = await this.prisma.asset.upsert({
-        where: { 
-          organizationId_assetNumber: {
-            organizationId: org1.id,
-            assetNumber: 'GEN-001'
-          }
-        },
-        update: {},
-        create: {
-          id: 'asset-3',
-          organizationId: org1.id,
-          createdById: adminUser.id,
-          assetNumber: 'GEN-001',
-          name: 'Backup Generator',
-          category: 'Equipment',
-          status: 'operational',
-          manufacturer: 'Caterpillar',
-          model: 'C15',
-          serialNumber: 'CAT-2024-003',
-          locationId: loc2.id,
-          description: 'Emergency backup power generator',
-          criticality: 'high',
-        },
-      });
+      await this.upsertAsset(
+        asset2Id,
+        org1Id,
+        acmeAdminId,
+        'CONV-001',
+        'Conveyor Belt System 1',
+        'Equipment',
+        'operational',
+        'Siemens',
+        'CONV-500',
+        'SI-2024-002',
+        loc1Id,
+        'Primary conveyor for production line',
+        'medium'
+      );
 
-      const asset4 = await this.prisma.asset.upsert({
-        where: { 
-          organizationId_assetNumber: {
-            organizationId: org1.id,
-            assetNumber: 'HVAC-001'
-          }
-        },
-        update: {},
-        create: {
-          id: 'asset-4',
-          organizationId: org1.id,
-          createdById: adminUser.id,
-          assetNumber: 'HVAC-001',
-          name: 'HVAC Unit - Floor 2',
-          category: 'Equipment',
-          status: 'maintenance',
-          manufacturer: 'Carrier',
-          model: 'AquaEdge 19DV',
-          serialNumber: 'CAR-2024-004',
-          locationId: loc1.id,
-          description: 'Climate control for production floor',
-          criticality: 'medium',
-        },
-      });
+      await this.upsertAsset(
+        asset3Id,
+        org1Id,
+        acmeAdminId,
+        'GEN-001',
+        'Backup Generator',
+        'Equipment',
+        'operational',
+        'Caterpillar',
+        'C15',
+        'CAT-2024-003',
+        loc2Id,
+        'Emergency backup power generator',
+        'high'
+      );
 
-      const asset5 = await this.prisma.asset.upsert({
-        where: { 
-          organizationId_assetNumber: {
-            organizationId: org1.id,
-            assetNumber: 'FORK-001'
-          }
-        },
-        update: {},
-        create: {
-          id: 'asset-5',
-          organizationId: org1.id,
-          createdById: adminUser.id,
-          assetNumber: 'FORK-001',
-          name: 'Forklift #1',
-          category: 'Vehicle',
-          status: 'operational',
-          manufacturer: 'Toyota',
-          model: '8FD25',
-          serialNumber: 'TOY-2024-005',
-          locationId: loc2.id,
-          description: 'Warehouse material handling',
-          criticality: 'low',
-        },
-      });
+      await this.upsertAsset(
+        asset4Id,
+        org1Id,
+        acmeAdminId,
+        'HVAC-001',
+        'HVAC Unit - Floor 2',
+        'Equipment',
+        'maintenance',
+        'Carrier',
+        'AquaEdge 19DV',
+        'CAR-2024-004',
+        loc1Id,
+        'Climate control for production floor',
+        'medium'
+      );
 
-      const asset6 = await this.prisma.asset.upsert({
-        where: { 
-          organizationId_assetNumber: {
-            organizationId: org1.id,
-            assetNumber: 'CNC-001'
-          }
-        },
-        update: {},
-        create: {
-          id: 'asset-6',
-          organizationId: org1.id,
-          createdById: adminUser.id,
-          assetNumber: 'CNC-001',
-          name: 'CNC Milling Machine',
-          category: 'Equipment',
-          status: 'operational',
-          manufacturer: 'Haas',
-          model: 'VF-2',
-          serialNumber: 'HAAS-2024-006',
-          locationId: loc1.id,
-          description: 'Precision machining center',
-          criticality: 'high',
-        },
-      });
+      await this.upsertAsset(
+        asset5Id,
+        org1Id,
+        acmeAdminId,
+        'FORK-001',
+        'Forklift #1',
+        'Vehicle',
+        'operational',
+        'Toyota',
+        '8FD25',
+        'TOY-2024-005',
+        loc2Id,
+        'Warehouse material handling',
+        'low'
+      );
+
+      await this.upsertAsset(
+        asset6Id,
+        org1Id,
+        acmeAdminId,
+        'CNC-001',
+        'CNC Milling Machine',
+        'Equipment',
+        'operational',
+        'Haas',
+        'VF-2',
+        'HAAS-2024-006',
+        loc1Id,
+        'Precision machining center',
+        'high'
+      );
 
       console.log('✅ Assets created');
 
       // Create work orders
       const year = new Date().getFullYear();
-      
-      await this.prisma.workOrder.upsert({
-        where: { 
-          organizationId_workOrderNumber: {
-            organizationId: org1.id,
-            workOrderNumber: `WO-${year}-001`
-          }
-        },
-        update: {},
-        create: {
-          id: 'wo-1',
-          organizationId: org1.id,
-          createdById: adminUser.id,
-          workOrderNumber: `WO-${year}-001`,
-          title: 'Hydraulic Pump Oil Change',
-          description: 'Scheduled oil change and filter replacement for hydraulic pump unit',
-          type: 'preventive',
-          priority: 'medium',
-          status: 'in_progress',
-          assetId: asset1.id,
-          assignedToId: tech1.id,
-          scheduledStart: new Date('2025-10-10T08:00:00'),
-          scheduledEnd: new Date('2025-10-10T12:00:00'),
-          estimatedHours: 4,
-        },
-      });
 
-      await this.prisma.workOrder.upsert({
-        where: { 
-          organizationId_workOrderNumber: {
-            organizationId: org1.id,
-            workOrderNumber: `WO-${year}-002`
-          }
-        },
-        update: {},
-        create: {
-          id: 'wo-2',
-          organizationId: org1.id,
-          createdById: adminUser.id,
-          workOrderNumber: `WO-${year}-002`,
-          title: 'Conveyor Belt Alignment',
-          description: 'Belt showing signs of misalignment, needs adjustment',
-          type: 'corrective',
-          priority: 'high',
-          status: 'open',
-          assetId: asset2.id,
-          assignedToId: tech2.id,
-          scheduledStart: new Date('2025-10-11T09:00:00'),
-          scheduledEnd: new Date('2025-10-11T11:00:00'),
-          estimatedHours: 2,
-        },
-      });
+      await this.upsertWorkOrder(
+        'wo-1',
+        org1Id,
+        acmeAdminId,
+        `WO-${year}-001`,
+        'Hydraulic Pump Oil Change',
+        'Scheduled oil change and filter replacement for hydraulic pump unit',
+        'preventive',
+        'medium',
+        'in_progress',
+        asset1Id,
+        tech1Id,
+        '2025-10-10T08:00:00',
+        '2025-10-10T12:00:00',
+        4,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      );
 
-      await this.prisma.workOrder.upsert({
-        where: { 
-          organizationId_workOrderNumber: {
-            organizationId: org1.id,
-            workOrderNumber: `WO-${year}-003`
-          }
-        },
-        update: {},
-        create: {
-          id: 'wo-3',
-          organizationId: org1.id,
-          createdById: adminUser.id,
-          workOrderNumber: `WO-${year}-003`,
-          title: 'Generator Load Test',
-          description: 'Monthly load test and inspection of backup generator',
-          type: 'preventive',
-          priority: 'medium',
-          status: 'assigned',
-          assetId: asset3.id,
-          assignedToId: tech1.id,
-          scheduledStart: new Date('2025-10-15T14:00:00'),
-          scheduledEnd: new Date('2025-10-15T16:00:00'),
-          estimatedHours: 2,
-        },
-      });
+      await this.upsertWorkOrder(
+        'wo-2',
+        org1Id,
+        acmeAdminId,
+        `WO-${year}-002`,
+        'Conveyor Belt Alignment',
+        'Belt showing signs of misalignment, needs adjustment',
+        'corrective',
+        'high',
+        'open',
+        asset2Id,
+        tech2Id,
+        '2025-10-11T09:00:00',
+        '2025-10-11T11:00:00',
+        2,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      );
 
-      await this.prisma.workOrder.upsert({
-        where: { 
-          organizationId_workOrderNumber: {
-            organizationId: org1.id,
-            workOrderNumber: `WO-${year}-004`
-          }
-        },
-        update: {},
-        create: {
-          id: 'wo-4',
-          organizationId: org1.id,
-          createdById: adminUser.id,
-          workOrderNumber: `WO-${year}-004`,
-          title: 'HVAC Filter Replacement',
-          description: 'Quarterly HVAC filter replacement and system inspection',
-          type: 'preventive',
-          priority: 'urgent',
-          status: 'completed',
-          assetId: asset4.id,
-          assignedToId: tech2.id,
-          scheduledStart: new Date('2025-10-01T10:00:00'),
-          scheduledEnd: new Date('2025-10-01T14:00:00'),
-          actualStart: new Date('2025-10-01T10:15:00'),
-          actualEnd: new Date('2025-10-01T13:45:00'),
-          estimatedHours: 4,
-          actualHours: 3.5,
-          laborCost: 1750,
-          partsCost: 500,
-          totalCost: 2250,
-          completedAt: new Date('2025-10-01T13:45:00'),
-        },
-      });
+      await this.upsertWorkOrder(
+        'wo-3',
+        org1Id,
+        acmeAdminId,
+        `WO-${year}-003`,
+        'Generator Load Test',
+        'Monthly load test and inspection of backup generator',
+        'preventive',
+        'medium',
+        'assigned',
+        asset3Id,
+        tech1Id,
+        '2025-10-15T14:00:00',
+        '2025-10-15T16:00:00',
+        2,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      );
 
-      await this.prisma.workOrder.upsert({
-        where: { 
-          organizationId_workOrderNumber: {
-            organizationId: org1.id,
-            workOrderNumber: `WO-${year}-005`
-          }
-        },
-        update: {},
-        create: {
-          id: 'wo-5',
-          organizationId: org1.id,
-          createdById: adminUser.id,
-          workOrderNumber: `WO-${year}-005`,
-          title: 'Forklift Battery Check',
-          description: 'Weekly battery inspection and water level check',
-          type: 'preventive',
-          priority: 'low',
-          status: 'open',
-          assetId: asset5.id,
-          scheduledStart: new Date('2025-10-12T08:00:00'),
-          scheduledEnd: new Date('2025-10-12T09:00:00'),
-          estimatedHours: 1,
-        },
-      });
+      await this.upsertWorkOrder(
+        'wo-4',
+        org1Id,
+        acmeAdminId,
+        `WO-${year}-004`,
+        'HVAC Filter Replacement',
+        'Quarterly HVAC filter replacement and system inspection',
+        'preventive',
+        'urgent',
+        'completed',
+        asset4Id,
+        tech2Id,
+        '2025-10-01T10:00:00',
+        '2025-10-01T14:00:00',
+        4,
+        '2025-10-01T10:15:00',
+        '2025-10-01T13:45:00',
+        3.5,
+        1750,
+        500,
+        2250,
+        '2025-10-01T13:45:00',
+        null
+      );
 
-      await this.prisma.workOrder.upsert({
-        where: { 
-          organizationId_workOrderNumber: {
-            organizationId: org1.id,
-            workOrderNumber: `WO-${year}-006`
-          }
-        },
-        update: {},
-        create: {
-          id: 'wo-6',
-          organizationId: org1.id,
-          createdById: adminUser.id,
-          workOrderNumber: `WO-${year}-006`,
-          title: 'CNC Machine Calibration',
-          description: 'Precision calibration and alignment check',
-          type: 'preventive',
-          priority: 'high',
-          status: 'assigned',
-          assetId: asset6.id,
-          assignedToId: tech1.id,
-          scheduledStart: new Date('2025-10-20T07:00:00'),
-          scheduledEnd: new Date('2025-10-20T12:00:00'),
-          estimatedHours: 5,
-        },
-      });
+      await this.upsertWorkOrder(
+        'wo-5',
+        org1Id,
+        acmeAdminId,
+        `WO-${year}-005`,
+        'Forklift Battery Check',
+        'Weekly battery inspection and water level check',
+        'preventive',
+        'low',
+        'open',
+        asset5Id,
+        null,
+        '2025-10-12T08:00:00',
+        '2025-10-12T09:00:00',
+        1,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      );
+
+      await this.upsertWorkOrder(
+        'wo-6',
+        org1Id,
+        acmeAdminId,
+        `WO-${year}-006`,
+        'CNC Machine Calibration',
+        'Precision calibration and alignment check',
+        'preventive',
+        'high',
+        'assigned',
+        asset6Id,
+        tech1Id,
+        '2025-10-20T07:00:00',
+        '2025-10-20T12:00:00',
+        5,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      );
 
       console.log('✅ Work orders created');
 
       // Create PM Schedules for Acme
-      const pmSchedule1 = await this.prisma.pMSchedule.upsert({
-        where: { id: 'pm-1' },
-        update: {},
-        create: {
-          id: 'pm-1',
-          organizationId: org1.id,
-          name: 'Monthly Hydraulic Pump Inspection',
-          description: 'Comprehensive inspection of hydraulic pump unit including oil analysis, pressure testing, and component wear assessment',
-          assetId: asset1.id,
-          frequency: 'monthly',
-          frequencyValue: 1,
-          priority: 'high',
-          status: 'active',
-          assignedToId: tech1.id,
-          lastCompleted: new Date('2025-09-03'),
-          nextDue: new Date('2025-10-03'),
-          tasks: JSON.stringify([
-            'Check oil level and quality',
-            'Inspect pump housing for leaks',
-            'Test pressure relief valve',
-            'Check belt tension and alignment',
-            'Clean air filters'
-          ]),
-          parts: JSON.stringify([
-            'Hydraulic oil (5L)',
-            'Oil filter',
-            'Air filter',
-            'Pressure gauge'
-          ]),
-          estimatedHours: 2.5,
-          createdById: adminUser.id,
-        },
-      });
+      await this.upsertPMSchedule(
+        'pm-1',
+        org1Id,
+        'Monthly Hydraulic Pump Inspection',
+        'Comprehensive inspection of hydraulic pump unit including oil analysis, pressure testing, and component wear assessment',
+        asset1Id,
+        'monthly',
+        1,
+        'high',
+        'active',
+        tech1Id,
+        '2025-09-03',
+        '2025-10-03',
+        JSON.stringify([
+          'Check oil level and quality',
+          'Inspect pump housing for leaks',
+          'Test pressure relief valve',
+          'Check belt tension and alignment',
+          'Clean air filters'
+        ]),
+        JSON.stringify([
+          'Hydraulic oil (5L)',
+          'Oil filter',
+          'Air filter',
+          'Pressure gauge'
+        ]),
+        2.5,
+        acmeAdminId
+      );
 
-      const pmSchedule2 = await this.prisma.pMSchedule.upsert({
-        where: { id: 'pm-2' },
-        update: {},
-        create: {
-          id: 'pm-2',
-          organizationId: org1.id,
-          name: 'Weekly Generator Oil Check',
-          description: 'Weekly maintenance check for backup generator including oil level, coolant, and battery status',
-          assetId: asset2.id,
-          frequency: 'weekly',
-          frequencyValue: 1,
-          priority: 'medium',
-          status: 'active',
-          assignedToId: tech2.id,
-          lastCompleted: new Date('2025-09-26'),
-          nextDue: new Date('2025-10-10'),
-          tasks: JSON.stringify([
-            'Check oil level',
-            'Inspect coolant level',
-            'Test battery voltage',
-            'Check fuel level',
-            'Run generator test cycle'
-          ]),
-          parts: JSON.stringify([
-            'Engine oil (1L)',
-            'Coolant (500ml)',
-            'Battery terminal cleaner'
-          ]),
-          estimatedHours: 1,
-          createdById: adminUser.id,
-        },
-      });
+      await this.upsertPMSchedule(
+        'pm-2',
+        org1Id,
+        'Weekly Generator Oil Check',
+        'Weekly maintenance check for backup generator including oil level, coolant, and battery status',
+        asset2Id,
+        'weekly',
+        1,
+        'medium',
+        'active',
+        tech2Id,
+        '2025-09-26',
+        '2025-10-10',
+        JSON.stringify([
+          'Check oil level',
+          'Inspect coolant level',
+          'Test battery voltage',
+          'Check fuel level',
+          'Run generator test cycle'
+        ]),
+        JSON.stringify([
+          'Engine oil (1L)',
+          'Coolant (500ml)',
+          'Battery terminal cleaner'
+        ]),
+        1,
+        acmeAdminId
+      );
 
-      const pmSchedule3 = await this.prisma.pMSchedule.upsert({
-        where: { id: 'pm-3' },
-        update: {},
-        create: {
-          id: 'pm-3',
-          organizationId: org1.id,
-          name: 'Quarterly HVAC Filter Replacement',
-          description: 'Quarterly replacement of HVAC air filters and system inspection',
-          assetId: asset3.id,
-          frequency: 'quarterly',
-          frequencyValue: 1,
-          priority: 'medium',
-          status: 'overdue',
-          assignedToId: tech1.id,
-          lastCompleted: new Date('2025-07-01'),
-          nextDue: new Date('2025-10-01'),
-          tasks: JSON.stringify([
-            'Replace air filters',
-            'Clean condenser coils',
-            'Check refrigerant levels',
-            'Inspect ductwork',
-            'Test thermostat calibration'
-          ]),
-          parts: JSON.stringify([
-            'HEPA air filters (4x)',
-            'Coil cleaner',
-            'Refrigerant (if needed)',
-            'Thermostat batteries'
-          ]),
-          estimatedHours: 3,
-          createdById: adminUser.id,
-        },
-      });
+      await this.upsertPMSchedule(
+        'pm-3',
+        org1Id,
+        'Quarterly HVAC Filter Replacement',
+        'Quarterly replacement of HVAC air filters and system inspection',
+        asset3Id,
+        'quarterly',
+        1,
+        'medium',
+        'overdue',
+        tech1Id,
+        '2025-07-01',
+        '2025-10-01',
+        JSON.stringify([
+          'Replace air filters',
+          'Clean condenser coils',
+          'Check refrigerant levels',
+          'Inspect ductwork',
+          'Test thermostat calibration'
+        ]),
+        JSON.stringify([
+          'HEPA air filters (4x)',
+          'Coil cleaner',
+          'Refrigerant (if needed)',
+          'Thermostat batteries'
+        ]),
+        3,
+        acmeAdminId
+      );
 
       // Create PM Schedules for Metro Hospital
-      const pmSchedule4 = await this.prisma.pMSchedule.upsert({
-        where: { id: 'pm-4' },
-        update: {},
-        create: {
-          id: 'pm-4',
-          organizationId: org2.id,
-          name: 'Daily MRI Scanner Calibration',
-          description: 'Daily calibration and safety checks for MRI scanner to ensure optimal performance',
-          frequency: 'daily',
-          frequencyValue: 1,
-          priority: 'urgent',
-          status: 'active',
-          assignedToId: hospitalTech.id,
-          lastCompleted: new Date('2025-10-09'),
-          nextDue: new Date('2025-10-10'),
-          tasks: JSON.stringify([
-            'Run calibration sequence',
-            'Check magnetic field strength',
-            'Test RF coil functionality',
-            'Verify patient safety systems',
-            'Update calibration logs'
-          ]),
-          parts: JSON.stringify([
-            'Calibration phantom',
-            'RF coil test equipment',
-            'Safety checklist forms'
-          ]),
-          estimatedHours: 1.5,
-          createdById: hospitalAdmin.id,
-        },
-      });
+      await this.upsertPMSchedule(
+        'pm-4',
+        org2Id,
+        'Daily MRI Scanner Calibration',
+        'Daily calibration and safety checks for MRI scanner to ensure optimal performance',
+        null,
+        'daily',
+        1,
+        'urgent',
+        'active',
+        hospitalTechId,
+        '2025-10-09',
+        '2025-10-10',
+        JSON.stringify([
+          'Run calibration sequence',
+          'Check magnetic field strength',
+          'Test RF coil functionality',
+          'Verify patient safety systems',
+          'Update calibration logs'
+        ]),
+        JSON.stringify([
+          'Calibration phantom',
+          'RF coil test equipment',
+          'Safety checklist forms'
+        ]),
+        1.5,
+        hospitalAdminId
+      );
 
-      const pmSchedule5 = await this.prisma.pMSchedule.upsert({
-        where: { id: 'pm-5' },
-        update: {},
-        create: {
-          id: 'pm-5',
-          organizationId: org2.id,
-          name: 'Monthly Ventilator Maintenance',
-          description: 'Monthly comprehensive maintenance of ICU ventilators including calibration and safety testing',
-          frequency: 'monthly',
-          frequencyValue: 1,
-          priority: 'high',
-          status: 'scheduled',
-          assignedToId: hospitalTech.id,
-          lastCompleted: new Date('2025-09-15'),
-          nextDue: new Date('2025-10-15'),
-          tasks: JSON.stringify([
-            'Calibrate pressure sensors',
-            'Test alarm systems',
-            'Check valve functionality',
-            'Clean internal components',
-            'Update firmware if needed'
-          ]),
-          parts: JSON.stringify([
-            'Pressure sensor calibration kit',
-            'Valve replacement set',
-            'Cleaning solution',
-            'Firmware update files'
-          ]),
-          estimatedHours: 4,
-          createdById: hospitalAdmin.id,
-        },
-      });
+      await this.upsertPMSchedule(
+        'pm-5',
+        org2Id,
+        'Monthly Ventilator Maintenance',
+        'Monthly comprehensive maintenance of ICU ventilators including calibration and safety testing',
+        null,
+        'monthly',
+        1,
+        'high',
+        'scheduled',
+        hospitalTechId,
+        '2025-09-15',
+        '2025-10-15',
+        JSON.stringify([
+          'Calibrate pressure sensors',
+          'Test alarm systems',
+          'Check valve functionality',
+          'Clean internal components',
+          'Update firmware if needed'
+        ]),
+        JSON.stringify([
+          'Pressure sensor calibration kit',
+          'Valve replacement set',
+          'Cleaning solution',
+          'Firmware update files'
+        ]),
+        4,
+        hospitalAdminId
+      );
 
       console.log('✅ PM Schedules created');
 
@@ -813,6 +626,227 @@ export class AppController {
         message: 'Failed to seed database',
         error: error.message
       };
+    }
+  }
+
+  private async upsertRole(id: string, name: string, description: string, permissions: string) {
+    const existing = await this.db.query(
+      'SELECT id FROM Role WHERE id = ?',
+      [id]
+    );
+
+    if (existing.length > 0) {
+      await this.db.execute(
+        'UPDATE Role SET name = ?, description = ?, permissions = ?, updatedAt = datetime("now") WHERE id = ?',
+        [name, description, permissions, id]
+      );
+    } else {
+      await this.db.execute(
+        'INSERT INTO Role (id, name, description, permissions, createdAt, updatedAt) VALUES (?, ?, ?, ?, datetime("now"), datetime("now"))',
+        [id, name, description, permissions]
+      );
+    }
+  }
+
+  private async upsertOrganization(
+    id: string,
+    name: string,
+    email: string,
+    phone: string,
+    city: string,
+    country: string,
+    industry: string,
+    tier: string,
+    status: string,
+    maxUsers: number
+  ) {
+    const existing = await this.db.query(
+      'SELECT id FROM Organization WHERE id = ?',
+      [id]
+    );
+
+    if (existing.length > 0) {
+      await this.db.execute(
+        'UPDATE Organization SET name = ?, email = ?, phone = ?, city = ?, country = ?, industry = ?, tier = ?, status = ?, maxUsers = ?, updatedAt = datetime("now") WHERE id = ?',
+        [name, email, phone, city, country, industry, tier, status, maxUsers, id]
+      );
+    } else {
+      await this.db.execute(
+        'INSERT INTO Organization (id, name, email, phone, city, country, industry, tier, status, maxUsers, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime("now"), datetime("now"))',
+        [id, name, email, phone, city, country, industry, tier, status, maxUsers]
+      );
+    }
+  }
+
+  private async upsertUser(
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+    phone: string,
+    status: string,
+    roleId: string | null,
+    organizationId: string | null,
+    isSuperAdmin: boolean
+  ): Promise<string> {
+    const existing = await this.db.query(
+      'SELECT id FROM User WHERE email = ?',
+      [email]
+    );
+
+    let userId: string;
+
+    if (existing.length > 0) {
+      userId = existing[0].id;
+      await this.db.execute(
+        'UPDATE User SET password = ?, firstName = ?, lastName = ?, phone = ?, status = ?, roleId = ?, organizationId = ?, isSuperAdmin = ?, updatedAt = datetime("now") WHERE email = ?',
+        [password, firstName, lastName, phone, status, roleId, organizationId, isSuperAdmin ? 1 : 0, email]
+      );
+    } else {
+      userId = randomBytes(16).toString('hex');
+      await this.db.execute(
+        'INSERT INTO User (id, email, password, firstName, lastName, phone, status, roleId, organizationId, isSuperAdmin, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime("now"), datetime("now"))',
+        [userId, email, password, firstName, lastName, phone, status, roleId, organizationId, isSuperAdmin ? 1 : 0]
+      );
+    }
+
+    return userId;
+  }
+
+  private async upsertLocation(
+    id: string,
+    organizationId: string,
+    name: string,
+    type: string,
+    address: string,
+    city: string
+  ) {
+    const existing = await this.db.query(
+      'SELECT id FROM Location WHERE id = ?',
+      [id]
+    );
+
+    if (existing.length > 0) {
+      await this.db.execute(
+        'UPDATE Location SET organizationId = ?, name = ?, type = ?, address = ?, city = ?, updatedAt = datetime("now") WHERE id = ?',
+        [organizationId, name, type, address, city, id]
+      );
+    } else {
+      await this.db.execute(
+        'INSERT INTO Location (id, organizationId, name, type, address, city, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, datetime("now"), datetime("now"))',
+        [id, organizationId, name, type, address, city]
+      );
+    }
+  }
+
+  private async upsertAsset(
+    id: string,
+    organizationId: string,
+    createdById: string,
+    assetNumber: string,
+    name: string,
+    category: string,
+    status: string,
+    manufacturer: string,
+    model: string,
+    serialNumber: string,
+    locationId: string,
+    description: string,
+    criticality: string
+  ) {
+    const existing = await this.db.query(
+      'SELECT id FROM Asset WHERE organizationId = ? AND assetNumber = ?',
+      [organizationId, assetNumber]
+    );
+
+    if (existing.length > 0) {
+      await this.db.execute(
+        'UPDATE Asset SET name = ?, category = ?, status = ?, manufacturer = ?, model = ?, serialNumber = ?, locationId = ?, description = ?, criticality = ?, updatedAt = datetime("now") WHERE organizationId = ? AND assetNumber = ?',
+        [name, category, status, manufacturer, model, serialNumber, locationId, description, criticality, organizationId, assetNumber]
+      );
+    } else {
+      await this.db.execute(
+        'INSERT INTO Asset (id, organizationId, createdById, assetNumber, name, category, status, manufacturer, model, serialNumber, locationId, description, criticality, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime("now"), datetime("now"))',
+        [id, organizationId, createdById, assetNumber, name, category, status, manufacturer, model, serialNumber, locationId, description, criticality]
+      );
+    }
+  }
+
+  private async upsertWorkOrder(
+    id: string,
+    organizationId: string,
+    createdById: string,
+    workOrderNumber: string,
+    title: string,
+    description: string,
+    type: string,
+    priority: string,
+    status: string,
+    assetId: string,
+    assignedToId: string | null,
+    scheduledStart: string,
+    scheduledEnd: string,
+    estimatedHours: number,
+    actualStart: string | null,
+    actualEnd: string | null,
+    actualHours: number | null,
+    laborCost: number | null,
+    partsCost: number | null,
+    totalCost: number | null,
+    completedAt: string | null,
+    notes: string | null
+  ) {
+    const existing = await this.db.query(
+      'SELECT id FROM WorkOrder WHERE organizationId = ? AND workOrderNumber = ?',
+      [organizationId, workOrderNumber]
+    );
+
+    if (existing.length > 0) {
+      await this.db.execute(
+        'UPDATE WorkOrder SET title = ?, description = ?, type = ?, priority = ?, status = ?, assetId = ?, assignedToId = ?, scheduledStart = ?, scheduledEnd = ?, estimatedHours = ?, actualStart = ?, actualEnd = ?, actualHours = ?, laborCost = ?, partsCost = ?, totalCost = ?, completedAt = ?, notes = ?, updatedAt = datetime("now") WHERE organizationId = ? AND workOrderNumber = ?',
+        [title, description, type, priority, status, assetId, assignedToId, scheduledStart, scheduledEnd, estimatedHours, actualStart, actualEnd, actualHours, laborCost, partsCost, totalCost, completedAt, notes, organizationId, workOrderNumber]
+      );
+    } else {
+      await this.db.execute(
+        'INSERT INTO WorkOrder (id, organizationId, createdById, workOrderNumber, title, description, type, priority, status, assetId, assignedToId, scheduledStart, scheduledEnd, estimatedHours, actualStart, actualEnd, actualHours, laborCost, partsCost, totalCost, completedAt, notes, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime("now"), datetime("now"))',
+        [id, organizationId, createdById, workOrderNumber, title, description, type, priority, status, assetId, assignedToId, scheduledStart, scheduledEnd, estimatedHours, actualStart, actualEnd, actualHours, laborCost, partsCost, totalCost, completedAt, notes]
+      );
+    }
+  }
+
+  private async upsertPMSchedule(
+    id: string,
+    organizationId: string,
+    name: string,
+    description: string,
+    assetId: string | null,
+    frequency: string,
+    frequencyValue: number,
+    priority: string,
+    status: string,
+    assignedToId: string,
+    lastCompleted: string,
+    nextDue: string,
+    tasks: string,
+    parts: string,
+    estimatedHours: number,
+    createdById: string
+  ) {
+    const existing = await this.db.query(
+      'SELECT id FROM PMSchedule WHERE id = ?',
+      [id]
+    );
+
+    if (existing.length > 0) {
+      await this.db.execute(
+        'UPDATE PMSchedule SET organizationId = ?, name = ?, description = ?, assetId = ?, frequency = ?, frequencyValue = ?, priority = ?, status = ?, assignedToId = ?, lastCompleted = ?, nextDue = ?, tasks = ?, parts = ?, estimatedHours = ?, createdById = ?, updatedAt = datetime("now") WHERE id = ?',
+        [organizationId, name, description, assetId, frequency, frequencyValue, priority, status, assignedToId, lastCompleted, nextDue, tasks, parts, estimatedHours, createdById, id]
+      );
+    } else {
+      await this.db.execute(
+        'INSERT INTO PMSchedule (id, organizationId, name, description, assetId, frequency, frequencyValue, priority, status, assignedToId, lastCompleted, nextDue, tasks, parts, estimatedHours, createdById, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime("now"), datetime("now"))',
+        [id, organizationId, name, description, assetId, frequency, frequencyValue, priority, status, assignedToId, lastCompleted, nextDue, tasks, parts, estimatedHours, createdById]
+      );
     }
   }
 }

@@ -1,27 +1,20 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { DatabaseService } from '../../database/database.service';
 import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private db: DatabaseService) {}
 
   async findAll(organizationId: string) {
-    return this.prisma.user.findMany({
-      where: { organizationId },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        phone: true,
-        roleId: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    return this.db.query(
+      `SELECT id, email, firstName, lastName, phone, roleId, status, createdAt, updatedAt
+       FROM User
+       WHERE organizationId = ?
+       ORDER BY createdAt DESC`,
+      [organizationId]
+    );
   }
 
   async invite(data: {
@@ -36,79 +29,55 @@ export class UsersService {
     const tempPassword = Math.random().toString(36).slice(-8);
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
-    const user = await this.prisma.user.create({
-      data: {
-        email: data.email,
-        password: hashedPassword,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        roleId: data.roleId,
-        organizationId: data.organizationId,
-        status: 'pending',
-      },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        roleId: true,
-        status: true,
-      },
-    });
+    const userId = randomBytes(16).toString('hex');
+
+    await this.db.execute(
+      `INSERT INTO User (id, email, password, firstName, lastName, roleId, organizationId, status, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+      [userId, data.email, hashedPassword, data.firstName, data.lastName, data.roleId, data.organizationId, 'pending']
+    );
+
+    const users = await this.db.query(
+      'SELECT id, email, firstName, lastName, roleId, status FROM User WHERE id = ?',
+      [userId]
+    );
 
     // TODO: Send email with temp password
     return {
-      user,
+      user: users[0],
       tempPassword, // In production, don't return this - send via email
       message: 'User invited successfully',
     };
   }
 
   async update(id: string, updateData: any) {
-    const user = await this.prisma.user.update({
-      where: { id },
-      data: {
-        firstName: updateData.firstName,
-        lastName: updateData.lastName,
-        phone: updateData.phone,
-        roleId: updateData.roleId,
-        status: updateData.status,
-      },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        phone: true,
-        roleId: true,
-        status: true,
-      },
-    });
+    await this.db.execute(
+      `UPDATE User SET firstName = ?, lastName = ?, phone = ?, roleId = ?, status = ?, updatedAt = datetime('now')
+       WHERE id = ?`,
+      [updateData.firstName, updateData.lastName, updateData.phone, updateData.roleId, updateData.status, id]
+    );
 
-    return { user, message: 'User updated successfully' };
+    const users = await this.db.query(
+      'SELECT id, email, firstName, lastName, phone, roleId, status FROM User WHERE id = ?',
+      [id]
+    );
+
+    return { user: users[0], message: 'User updated successfully' };
   }
 
   async remove(id: string) {
-    await this.prisma.user.delete({
-      where: { id },
-    });
-
+    await this.db.execute('DELETE FROM User WHERE id = ?', [id]);
     return { message: 'User removed successfully' };
   }
 
   async updateNotificationPreferences(userId: string, preferences: any) {
-    const user = await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        // Note: pushNotifications field doesn't exist in current schema
-        // This method is a placeholder for future notification preferences
-      },
-      select: {
-        id: true,
-        email: true,
-      },
-    });
+    // Note: pushNotifications field doesn't exist in current schema
+    // This method is a placeholder for future notification preferences
+    const users = await this.db.query(
+      'SELECT id, email FROM User WHERE id = ?',
+      [userId]
+    );
 
-    return { user, message: 'Notification preferences updated successfully' };
+    return { user: users[0], message: 'Notification preferences updated successfully' };
   }
 }

@@ -1,7 +1,8 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from '../../prisma/prisma.service';
+import { DatabaseService } from '../../database/database.service';
 import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 
 export interface RegisterDto {
   email: string;
@@ -20,7 +21,7 @@ export interface LoginDto {
 @Injectable()
 export class AuthService {
   constructor(
-    private prisma: PrismaService,
+    private db: DatabaseService,
     private jwtService: JwtService,
   ) {}
 
@@ -29,36 +30,36 @@ export class AuthService {
    */
   async register(data: RegisterDto) {
     // Check if user already exists
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email: data.email },
-    });
+    const existingUser = await this.db.query(
+      'SELECT id FROM User WHERE email = ?',
+      [data.email]
+    );
 
-    if (existingUser) {
+    if (existingUser && existingUser.length > 0) {
       throw new UnauthorizedException('User already exists');
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
+    // Generate ID
+    const userId = randomBytes(16).toString('hex');
+
     // Create user
-    const user = await this.prisma.user.create({
-      data: {
-        email: data.email,
-        password: hashedPassword,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        organizationId: data.organizationId,
-        roleId: data.roleId,
-      },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        roleId: true,
-        organizationId: true,
-      },
-    });
+    await this.db.execute(
+      `INSERT INTO User (id, email, password, firstName, lastName, organizationId, roleId, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+      [userId, data.email, hashedPassword, data.firstName, data.lastName, data.organizationId, data.roleId || null]
+    );
+
+    const user = {
+      id: userId,
+      email: data.email,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      roleId: data.roleId || null,
+      organizationId: data.organizationId,
+    };
 
     // Generate JWT token
     const token = this.jwtService.sign({
@@ -79,13 +80,16 @@ export class AuthService {
    */
   async login(data: LoginDto) {
     // Find user
-    const user = await this.prisma.user.findUnique({
-      where: { email: data.email },
-    });
+    const users = await this.db.query(
+      'SELECT id, email, password, firstName, lastName, roleId, organizationId, isSuperAdmin FROM User WHERE email = ?',
+      [data.email]
+    );
 
-    if (!user) {
+    if (!users || users.length === 0) {
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    const user = users[0];
 
     // Verify password
     const isPasswordValid = await bcrypt.compare(data.password, user.password);
@@ -120,48 +124,33 @@ export class AuthService {
    * Validate user from JWT payload
    */
   async validateUser(payload: any) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        roleId: true,
-        organizationId: true,
-      },
-    });
+    const users = await this.db.query(
+      'SELECT id, email, firstName, lastName, roleId, organizationId FROM User WHERE id = ?',
+      [payload.sub]
+    );
 
-    if (!user) {
+    if (!users || users.length === 0) {
       throw new UnauthorizedException('User not found');
     }
 
-    return user;
+    return users[0];
   }
 
   /**
    * Update user profile
    */
   async updateProfile(userId: string, updateData: any) {
-    const user = await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        firstName: updateData.firstName,
-        lastName: updateData.lastName,
-        phone: updateData.phone,
-      },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        phone: true,
-        roleId: true,
-        organizationId: true,
-      },
-    });
+    await this.db.execute(
+      `UPDATE User SET firstName = ?, lastName = ?, phone = ?, updatedAt = datetime('now') WHERE id = ?`,
+      [updateData.firstName, updateData.lastName, updateData.phone, userId]
+    );
 
-    return { user, message: 'Profile updated successfully' };
+    const users = await this.db.query(
+      'SELECT id, email, firstName, lastName, phone, roleId, organizationId FROM User WHERE id = ?',
+      [userId]
+    );
+
+    return { user: users[0], message: 'Profile updated successfully' };
   }
 
   /**
@@ -169,13 +158,16 @@ export class AuthService {
    */
   async changePassword(userId: string, currentPassword: string, newPassword: string) {
     // Get user with password
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+    const users = await this.db.query(
+      'SELECT id, password FROM User WHERE id = ?',
+      [userId]
+    );
 
-    if (!user) {
+    if (!users || users.length === 0) {
       throw new UnauthorizedException('User not found');
     }
+
+    const user = users[0];
 
     // Verify current password
     const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
@@ -188,10 +180,10 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Update password
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { password: hashedPassword },
-    });
+    await this.db.execute(
+      `UPDATE User SET password = ?, updatedAt = datetime('now') WHERE id = ?`,
+      [hashedPassword, userId]
+    );
 
     return { message: 'Password changed successfully' };
   }
