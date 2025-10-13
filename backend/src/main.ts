@@ -1,11 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { initializeDatabase } from './init-db';
 
 async function bootstrap() {
-  // Initialize database schema if using SQLite Cloud
-  await initializeDatabase();
-
   const app = await NestFactory.create(AppModule);
 
   // Enable CORS for frontend
