@@ -5,8 +5,9 @@ services:
     runtime: node
     region: singapore
     plan: free
-    buildCommand: cd backend && npm install && cp prisma/schema.production.prisma prisma/schema.prisma && npx prisma generate && npm run build
-    startCommand: cd backend && npx prisma db push --accept-data-loss && node dist/src/main.js
+    rootDirectory: backend
+    buildCommand: npm install && cp prisma/schema.production.prisma prisma/schema.prisma && npx prisma generate && npm run build
+    startCommand: npx prisma db push --accept-data-loss && node dist/src/main.js
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -24,8 +25,9 @@ services:
     runtime: node
     region: singapore
     plan: free
-    buildCommand: cd frontend && npm install && npm run build
-    startCommand: cd frontend && npm run start
+    rootDirectory: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
     envVars:
       - key: NEXT_PUBLIC_API_URL
         sync: false
