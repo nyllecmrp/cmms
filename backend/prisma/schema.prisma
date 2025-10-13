@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -39,6 +39,8 @@ model User {
   createdAssets           Asset[] @relation("CreatedBy")
   assignedWorkOrders      WorkOrder[] @relation("AssignedTo")
   createdWorkOrders       WorkOrder[] @relation("CreatedBy")
+  assignedPMSchedules     PMSchedule[] @relation("PMScheduleAssignedTo")
+  createdPMSchedules      PMSchedule[] @relation("PMScheduleCreatedBy")
 
   @@index([organizationId])
   @@index([email])
@@ -91,6 +93,7 @@ model Organization {
   assets              Asset[]
   workOrders          WorkOrder[]
   locations           Location[]
+  pmSchedules         PMSchedule[]
 
   @@index([tier])
   @@index([status])
@@ -213,6 +216,7 @@ model Asset {
 
   // Relations
   workOrders        WorkOrder[]
+  pmSchedules       PMSchedule[]
 
   @@index([organizationId])
   @@index([assetNumber])
@@ -279,4 +283,39 @@ model WorkOrder {
   @@index([status])
   @@index([assignedToId])
   @@unique([organizationId, workOrderNumber])
+}
+
+// ============================================
+// PREVENTIVE MAINTENANCE SCHEDULES
+// ============================================
+
+model PMSchedule {
+  id              String    @id @default(uuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name            String
+  description     String?
+  assetId         String?
+  asset           Asset? @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  frequency       String    // daily, weekly, monthly, quarterly, yearly, custom
+  frequencyValue  Int       @default(1) // e.g., every 2 weeks = frequency: weekly, frequencyValue: 2
+  priority        String    @default("medium") // low, medium, high, urgent
+  status          String    @default("active") // active, scheduled, paused, completed
+  assignedToId    String?
+  assignedTo      User? @relation("PMScheduleAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  lastCompleted   DateTime?
+  nextDue         DateTime?
+  tasks           String?   // JSON array of task descriptions
+  parts           String?   // JSON array of required parts
+  estimatedHours  Float?
+  createdById     String
+  createdBy       User @relation("PMScheduleCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([nextDue])
+  @@index([assetId])
+  @@index([assignedToId])
 }

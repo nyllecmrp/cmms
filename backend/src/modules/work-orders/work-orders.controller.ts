@@ -2,13 +2,16 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } f
 import { WorkOrdersService } from './work-orders.service';
 import type { CreateWorkOrderDto, UpdateWorkOrderDto } from './work-orders.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ModuleAccessGuard, RequireModule } from '../../common/guards/module-access.guard';
+import { ModuleKey } from '../../common/constants/role-permissions.constant';
 
 @Controller('work-orders')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ModuleAccessGuard)
 export class WorkOrdersController {
   constructor(private readonly workOrdersService: WorkOrdersService) {}
 
   @Post()
+  @RequireModule(ModuleKey.WORK_ORDERS)
   async create(@Body() createWorkOrderDto: CreateWorkOrderDto) {
     try {
       console.log('Creating work order with data:', JSON.stringify(createWorkOrderDto, null, 2));
@@ -20,16 +23,19 @@ export class WorkOrdersController {
   }
 
   @Get()
+  @RequireModule(ModuleKey.WORK_ORDERS)
   findAll(@Query('organizationId') organizationId: string) {
     return this.workOrdersService.findAll(organizationId);
   }
 
   @Get(':id')
+  @RequireModule(ModuleKey.WORK_ORDERS)
   findOne(@Param('id') id: string) {
     return this.workOrdersService.findOne(id);
   }
 
   @Patch(':id')
+  @RequireModule(ModuleKey.WORK_ORDERS)
   async update(@Param('id') id: string, @Body() updateWorkOrderDto: UpdateWorkOrderDto) {
     try {
       console.log('Updating work order:', id, JSON.stringify(updateWorkOrderDto, null, 2));
@@ -43,6 +49,7 @@ export class WorkOrdersController {
   }
 
   @Delete(':id')
+  @RequireModule(ModuleKey.WORK_ORDERS)
   remove(@Param('id') id: string) {
     return this.workOrdersService.remove(id);
   }

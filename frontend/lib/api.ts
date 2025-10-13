@@ -488,6 +488,46 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  // PM Schedules
+  async getPMSchedules(organizationId: string) {
+    return this.request(`/pm-schedules?organizationId=${organizationId}`);
+  }
+
+  async getPMSchedule(id: string) {
+    return this.request(`/pm-schedules/${id}`);
+  }
+
+  async createPMSchedule(data: any) {
+    return this.request('/pm-schedules', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updatePMSchedule(id: string, data: any) {
+    return this.request(`/pm-schedules/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updatePMScheduleStatus(id: string, status: string) {
+    return this.request(`/pm-schedules/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async deletePMSchedule(id: string) {
+    return this.request(`/pm-schedules/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getPMScheduleStats(organizationId: string) {
+    return this.request(`/pm-schedules/stats?organizationId=${organizationId}`);
+  }
 }
 
 export const api = new ApiClient(API_BASE_URL);

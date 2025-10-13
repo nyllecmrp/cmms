@@ -1,8 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
 import WorkOrderForm from '@/components/WorkOrderForm';
+import RoleGuard from '@/components/RoleGuard';
+import { canPerformAction } from '@/lib/rolePermissions';
 
 interface WorkOrder {
   id: string;
@@ -27,6 +30,7 @@ interface WorkOrder {
 }
 
 export default function WorkOrdersPage() {
+  const { user } = useAuth();
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +38,10 @@ export default function WorkOrdersPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(null);
+  
+  const canCreate = canPerformAction(user?.roleId || null, 'create');
+  const canEdit = canPerformAction(user?.roleId || null, 'edit');
+  const canDelete = canPerformAction(user?.roleId || null, 'delete');
 
   useEffect(() => {
     const fetchWorkOrders = async () => {

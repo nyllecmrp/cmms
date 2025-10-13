@@ -2,38 +2,46 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } f
 import { AssetsService } from './assets.service';
 import type { CreateAssetDto, UpdateAssetDto } from './assets.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ModuleAccessGuard, RequireModule } from '../../common/guards/module-access.guard';
+import { ModuleKey } from '../../common/constants/role-permissions.constant';
 
 @Controller('assets')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ModuleAccessGuard)
 export class AssetsController {
   constructor(private readonly assetsService: AssetsService) {}
 
   @Post()
+  @RequireModule(ModuleKey.ASSETS)
   create(@Body() createAssetDto: CreateAssetDto) {
     return this.assetsService.create(createAssetDto);
   }
 
   @Get()
+  @RequireModule(ModuleKey.ASSETS)
   findAll(@Query('organizationId') organizationId: string) {
     return this.assetsService.findAll(organizationId);
   }
 
   @Get('stats/by-category')
+  @RequireModule(ModuleKey.ASSETS)
   getStatsByCategory(@Query('organizationId') organizationId: string) {
     return this.assetsService.getStatsByCategory(organizationId);
   }
 
   @Get(':id')
+  @RequireModule(ModuleKey.ASSETS)
   findOne(@Param('id') id: string) {
     return this.assetsService.findOne(id);
   }
 
   @Patch(':id')
+  @RequireModule(ModuleKey.ASSETS)
   update(@Param('id') id: string, @Body() updateAssetDto: UpdateAssetDto) {
     return this.assetsService.update(id, updateAssetDto);
   }
 
   @Delete(':id')
+  @RequireModule(ModuleKey.ASSETS)
   remove(@Param('id') id: string) {
     return this.assetsService.remove(id);
   }

@@ -9,7 +9,6 @@ interface Module {
   name: string;
   description: string;
   tier: string;
-  price: number;
   features: string[];
   benefits: string;
 }
@@ -20,7 +19,6 @@ const AVAILABLE_MODULES: Module[] = [
     name: 'Preventive Maintenance',
     description: 'Schedule and automate routine maintenance to prevent equipment failures',
     tier: 'Professional',
-    price: 2999,
     features: [
       'PM schedule auto-generation',
       'Recurring task templates',
@@ -214,10 +212,14 @@ export default function ModulesPage() {
               </div>
 
               <div className="mb-4">
-                <p className="text-2xl font-bold text-gray-900">
-                  ₱{module.price.toLocaleString()}
-                  <span className="text-sm font-normal text-gray-600">/month</span>
-                </p>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <p className="text-sm font-medium text-yellow-800">
+                    💡 Pricing Coming Soon
+                  </p>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    Contact us for custom pricing
+                  </p>
+                </div>
               </div>
 
               <button
@@ -333,7 +335,7 @@ export default function ModulesPage() {
                   <p className="text-sm text-gray-600">
                     {requestType === 'trial'
                       ? '✓ 30-day free trial with full access to all features'
-                      : `✓ Monthly subscription: ₱${selectedModule.price.toLocaleString()}/month`
+                      : '✓ Custom pricing - Our team will contact you with a quote'
                     }
                   </p>
                 </div>

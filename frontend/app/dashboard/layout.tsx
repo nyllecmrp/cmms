@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import LockedModuleModal from '@/components/LockedModuleModal';
 import api from '@/lib/api';
+import { canAccessModule, getRoleDisplayName, getRoleColor } from '@/lib/rolePermissions';
 
 export default function DashboardLayout({
   children,
@@ -86,25 +87,25 @@ export default function DashboardLayout({
   };
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: '📊', moduleCode: '' },
-    { name: 'Assets', href: '/dashboard/assets', icon: '🔧', moduleCode: '' },
-    { name: 'Work Orders', href: '/dashboard/work-orders', icon: '📋', moduleCode: '' },
-    { name: 'Work Requests', href: '/dashboard/work-requests', icon: '📝', locked: true, moduleCode: 'work_request_management' },
-    { name: 'Preventive Maintenance', href: '/dashboard/pm', icon: '🔄', locked: true, moduleCode: 'preventive_maintenance' },
-    { name: 'Inventory', href: '/dashboard/inventory', icon: '📦', locked: true, moduleCode: 'inventory_management' },
-    { name: 'Scheduling', href: '/dashboard/scheduling', icon: '📅', locked: true, moduleCode: 'scheduling_planning' },
-    { name: 'Documents', href: '/dashboard/documents', icon: '📁', locked: true, moduleCode: 'document_management' },
-    { name: 'Calibration', href: '/dashboard/calibration', icon: '🔬', locked: true, moduleCode: 'calibration_management' },
-    { name: 'Safety', href: '/dashboard/safety', icon: '🚨', locked: true, moduleCode: 'safety_compliance' },
-    { name: 'Asset Tracking', href: '/dashboard/asset-tracking', icon: '📍', locked: true, moduleCode: 'asset_tracking_qr' },
-    { name: 'Vendors', href: '/dashboard/vendors', icon: '🏢', locked: true, moduleCode: 'vendor_management' },
-    { name: 'Predictive', href: '/dashboard/predictive', icon: '🔮', locked: true, moduleCode: 'predictive_maintenance' },
-    { name: 'Audit & Quality', href: '/dashboard/audit', icon: '✅', locked: true, moduleCode: 'audit_quality' },
-    { name: 'Energy', href: '/dashboard/energy', icon: '⚡', locked: true, moduleCode: 'energy_management' },
-    { name: 'Reports', href: '/dashboard/reports', icon: '📈', moduleCode: '' },
-    { name: 'Users', href: '/dashboard/users', icon: '👥', moduleCode: '' },
-    { name: 'Modules', href: '/dashboard/modules', icon: '🧩', moduleCode: '' },
-    { name: 'Settings', href: '/dashboard/settings', icon: '⚙️', moduleCode: '' },
+    { name: 'Dashboard', href: '/dashboard', icon: '📊', moduleCode: '', moduleKey: '' },
+    { name: 'Assets', href: '/dashboard/assets', icon: '🔧', moduleCode: '', moduleKey: 'assets' },
+    { name: 'Work Orders', href: '/dashboard/work-orders', icon: '📋', moduleCode: '', moduleKey: 'work-orders' },
+    { name: 'Work Requests', href: '/dashboard/work-requests', icon: '📝', locked: true, moduleCode: 'work_request_management', moduleKey: 'work-requests' },
+    { name: 'Preventive Maintenance', href: '/dashboard/pm', icon: '🔄', locked: true, moduleCode: 'preventive_maintenance', moduleKey: 'preventive-maintenance' },
+    { name: 'Inventory', href: '/dashboard/inventory', icon: '📦', locked: true, moduleCode: 'inventory_management', moduleKey: 'inventory' },
+    { name: 'Scheduling', href: '/dashboard/scheduling', icon: '📅', locked: true, moduleCode: 'scheduling_planning', moduleKey: 'scheduling' },
+    { name: 'Documents', href: '/dashboard/documents', icon: '📁', locked: true, moduleCode: 'document_management', moduleKey: 'documents' },
+    { name: 'Calibration', href: '/dashboard/calibration', icon: '🔬', locked: true, moduleCode: 'calibration_management', moduleKey: 'calibration' },
+    { name: 'Safety', href: '/dashboard/safety', icon: '🚨', locked: true, moduleCode: 'safety_compliance', moduleKey: 'safety' },
+    { name: 'Asset Tracking', href: '/dashboard/asset-tracking', icon: '📍', locked: true, moduleCode: 'asset_tracking_qr', moduleKey: 'asset-tracking' },
+    { name: 'Vendors', href: '/dashboard/vendors', icon: '🏢', locked: true, moduleCode: 'vendor_management', moduleKey: 'vendors' },
+    { name: 'Predictive', href: '/dashboard/predictive', icon: '🔮', locked: true, moduleCode: 'predictive_maintenance', moduleKey: 'predictive-maintenance' },
+    { name: 'Audit & Quality', href: '/dashboard/audit', icon: '✅', locked: true, moduleCode: 'audit_quality', moduleKey: 'audit' },
+    { name: 'Energy', href: '/dashboard/energy', icon: '⚡', locked: true, moduleCode: 'energy_management', moduleKey: 'energy' },
+    { name: 'Reports', href: '/dashboard/reports', icon: '📈', moduleCode: '', moduleKey: 'reports' },
+    { name: 'Users', href: '/dashboard/users', icon: '👥', moduleCode: '', moduleKey: 'users' },
+    { name: 'Modules', href: '/dashboard/modules', icon: '🧩', moduleCode: '', moduleKey: '' },
+    { name: 'Settings', href: '/dashboard/settings', icon: '⚙️', moduleCode: '', moduleKey: 'settings' },
   ];
 
   return (
@@ -127,9 +128,16 @@ export default function DashboardLayout({
             {/* Navigation */}
             <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
               {navigation.filter((item) => {
-                // Show if no moduleCode (core features) OR module is active
+                // Filter by licensing (module must be active)
                 const isLocked = item.moduleCode && !activeModules.has(item.moduleCode);
-                return !isLocked;
+                if (isLocked) return false;
+                
+                // Filter by role permission
+                if (item.moduleKey && !canAccessModule(user?.roleId || null, item.moduleKey)) {
+                  return false;
+                }
+                
+                return true;
               }).map((item) => {
                 const isActive = pathname === item.href;
                 return (
@@ -158,6 +166,11 @@ export default function DashboardLayout({
                 <div className="ml-3 flex-1">
                   <p className="text-sm font-medium text-white truncate">{user?.email}</p>
                   <p className="text-xs text-gray-400">{user?.firstName} {user?.lastName}</p>
+                  {user?.roleId && (
+                    <span className={`inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded ${getRoleColor(user.roleId)}`}>
+                      {getRoleDisplayName(user.roleId)}
+                    </span>
+                  )}
                 </div>
               </div>
               <button

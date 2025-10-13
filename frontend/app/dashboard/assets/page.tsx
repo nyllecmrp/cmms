@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
 import AssetForm from '@/components/AssetForm';
+import RoleGuard from '@/components/RoleGuard';
+import { canPerformAction } from '@/lib/rolePermissions';
 
 interface Asset {
   id: string;
@@ -17,12 +20,17 @@ interface Asset {
 }
 
 export default function AssetsPage() {
+  const { user } = useAuth();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  
+  const canCreate = canPerformAction(user?.roleId || null, 'create');
+  const canEdit = canPerformAction(user?.roleId || null, 'edit');
+  const canDelete = canPerformAction(user?.roleId || null, 'delete');
 
   useEffect(() => {
     const fetchAssets = async () => {
@@ -121,28 +129,31 @@ export default function AssetsPage() {
   };
 
   return (
-    <div>
-      {error && (
-        <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <p className="text-yellow-800">
-            ⚠️ {error} - Showing cached data. Backend may not be connected.
-          </p>
-        </div>
-      )}
+    <RoleGuard requiredModule="assets">
+      <div>
+        {error && (
+          <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p className="text-yellow-800">
+              ⚠️ {error} - Showing cached data. Backend may not be connected.
+            </p>
+          </div>
+        )}
 
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Assets</h1>
-          <p className="text-gray-600 mt-1">Manage your equipment and facilities</p>
+        {/* Header */}
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Assets</h1>
+            <p className="text-gray-600 mt-1">Manage your equipment and facilities</p>
+          </div>
+          {canCreate && (
+            <button
+              onClick={handleAddAsset}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
+            >
+              + Add New Asset
+            </button>
+          )}
         </div>
-        <button
-          onClick={handleAddAsset}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
-        >
-          + Add New Asset
-        </button>
-      </div>
 
       {/* Search and Filters */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
@@ -180,12 +191,14 @@ export default function AssetsPage() {
             <div className="text-6xl mb-4">📦</div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No assets found</h3>
             <p className="text-gray-600 mb-4">Start by adding your first asset to the system.</p>
-            <button 
-              onClick={handleAddAsset}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-            >
-              + Add Your First Asset
-            </button>
+            {canCreate && (
+              <button 
+                onClick={handleAddAsset}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              >
+                + Add Your First Asset
+              </button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -227,18 +240,25 @@ export default function AssetsPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <button
-                        onClick={() => handleEditAsset(asset)}
-                        className="text-gray-600 hover:text-gray-800 mr-3"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteAsset(asset.id)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        Delete
-                      </button>
+                      {canEdit && (
+                        <button
+                          onClick={() => handleEditAsset(asset)}
+                          className="text-gray-600 hover:text-gray-800 mr-3"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          onClick={() => handleDeleteAsset(asset.id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          Delete
+                        </button>
+                      )}
+                      {!canEdit && !canDelete && (
+                        <span className="text-gray-400 text-xs">View only</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -274,12 +294,13 @@ export default function AssetsPage() {
         </div>
       </div>
 
-      <AssetForm
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        onSuccess={handleFormSuccess}
-        asset={selectedAsset}
-      />
-    </div>
+        <AssetForm
+          isOpen={isFormOpen}
+          onClose={() => setIsFormOpen(false)}
+          onSuccess={handleFormSuccess}
+          asset={selectedAsset}
+        />
+      </div>
+    </RoleGuard>
   );
 }

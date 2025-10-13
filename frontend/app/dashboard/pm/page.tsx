@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
+import RoleGuard from '@/components/RoleGuard';
+import { canPerformAction } from '@/lib/rolePermissions';
 
 interface PMSchedule {
   id: string;
@@ -35,6 +37,15 @@ export default function PreventiveMaintenancePage() {
   const [assetSearch, setAssetSearch] = useState('');
   const [showAssetDropdown, setShowAssetDropdown] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [stats, setStats] = useState({
+    total: 0,
+    dueSoon: 0,
+    overdue: 0,
+    completedThisMonth: 0,
+  });
+  
+  const canCreate = canPerformAction(user?.roleId || null, 'create');
+  const canDelete = canPerformAction(user?.roleId || null, 'delete');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -48,52 +59,45 @@ export default function PreventiveMaintenancePage() {
   });
 
   useEffect(() => {
-    // Mock PM schedules data
-    const mockSchedules: PMSchedule[] = [
-      {
-        id: '1',
-        name: 'Monthly Hydraulic Pump Inspection',
-        assetId: 'asset-1',
-        assetName: 'Hydraulic Pump Unit A',
-        frequency: 'monthly',
-        frequencyValue: 1,
-        lastCompleted: '2025-09-03',
-        nextDue: '2025-10-03',
-        status: 'due_soon',
-        assignedTo: 'John Doe',
-        priority: 'high',
-      },
-      {
-        id: '2',
-        name: 'Weekly Generator Oil Check',
-        assetId: 'asset-2',
-        assetName: 'Backup Generator',
-        frequency: 'weekly',
-        frequencyValue: 1,
-        lastCompleted: '2025-09-26',
-        nextDue: '2025-10-10',
-        status: 'scheduled',
-        assignedTo: 'Maria Santos',
-        priority: 'medium',
-      },
-      {
-        id: '3',
-        name: 'Quarterly HVAC Filter Replacement',
-        assetId: 'asset-3',
-        assetName: 'HVAC Unit - Floor 2',
-        frequency: 'quarterly',
-        frequencyValue: 3,
-        lastCompleted: '2025-07-01',
-        nextDue: '2025-10-01',
-        status: 'overdue',
-        assignedTo: 'Juan Cruz',
-        priority: 'urgent',
-      },
-    ];
+    const fetchData = async () => {
+      if (!user?.organizationId) return;
 
-    setSchedules(mockSchedules);
-    setLoading(false);
-  }, []);
+      try {
+        setLoading(true);
+        const [schedulesData, statsData] = await Promise.all([
+          api.getPMSchedules(user.organizationId),
+          api.getPMScheduleStats(user.organizationId),
+        ]);
+
+        // Transform the data to match the expected format
+        const transformedSchedules = (schedulesData as any[]).map(schedule => ({
+          id: schedule.id,
+          name: schedule.name,
+          assetId: schedule.assetId,
+          assetName: schedule.asset?.name || 'No Asset',
+          frequency: schedule.frequency,
+          frequencyValue: schedule.frequencyValue,
+          lastCompleted: schedule.lastCompleted ? new Date(schedule.lastCompleted).toISOString().split('T')[0] : undefined,
+          nextDue: new Date(schedule.nextDue).toISOString().split('T')[0],
+          status: schedule.status,
+          assignedTo: schedule.assignedTo ? `${schedule.assignedTo.firstName} ${schedule.assignedTo.lastName}` : 'Unassigned',
+          priority: schedule.priority,
+        }));
+
+        setSchedules(transformedSchedules);
+        setStats(statsData as any);
+      } catch (error) {
+        console.error('Failed to fetch PM schedules:', error);
+        // Fallback to empty data on error
+        setSchedules([]);
+        setStats({ total: 0, dueSoon: 0, overdue: 0, completedThisMonth: 0 });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user?.organizationId]);
 
   // Fetch assets when modal opens
   useEffect(() => {
@@ -211,8 +215,22 @@ export default function PreventiveMaintenancePage() {
       const scheduledEnd = new Date(schedule.nextDue);
       scheduledEnd.setHours(scheduledEnd.getHours() + 2); // Default 2-hour window
 
+      // Verify asset exists if assetId is provided
+      let validAssetId: string | undefined = undefined;
+      if (schedule.assetId) {
+        try {
+          const allAssets = await api.getAssets(user.organizationId);
+          const assetExists = (allAssets as any[]).some(a => a.id === schedule.assetId);
+          if (assetExists) {
+            validAssetId = schedule.assetId;
+          }
+        } catch (err) {
+          console.warn('Could not verify asset:', err);
+        }
+      }
+
       // Create work order from PM schedule
-      await api.createWorkOrder({
+      const payload: any = {
         organizationId: user.organizationId,
         createdById: user.id,
         workOrderNumber,
@@ -221,14 +239,23 @@ export default function PreventiveMaintenancePage() {
         type: 'preventive',
         priority: schedule.priority,
         status: 'open',
-        assetId: schedule.assetId,
         scheduledStart: scheduledStart.toISOString(),
         scheduledEnd: scheduledEnd.toISOString(),
-      });
+      };
+
+      // Only include assetId if it's valid
+      if (validAssetId) {
+        payload.assetId = validAssetId;
+      }
+
+      await api.createWorkOrder(payload);
 
       alert(`✅ Work Order ${workOrderNumber} created successfully!\n\nYou can view it in the Work Orders page.`);
 
-      // Update schedule status to reflect work order was generated
+      // Update schedule status in database
+      await api.updatePMScheduleStatus(scheduleId, 'scheduled');
+
+      // Update local state to reflect work order was generated
       const updatedSchedules = schedules.map(s => 
         s.id === scheduleId ? { ...s, status: 'scheduled' } : s
       );
@@ -240,41 +267,40 @@ export default function PreventiveMaintenancePage() {
   };
 
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">🔄 Preventive Maintenance</h1>
-          <p className="text-gray-600 mt-1">Schedule and manage routine maintenance tasks</p>
+    <RoleGuard requiredModule="preventive-maintenance">
+      <div>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">🔄 Preventive Maintenance</h1>
+            <p className="text-gray-600 mt-1">Schedule and manage routine maintenance tasks</p>
+          </div>
+          {canCreate && (
+            <button
+              onClick={() => setIsFormOpen(true)}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
+            >
+              + Create PM Schedule
+            </button>
+          )}
         </div>
-        <button
-          onClick={() => setIsFormOpen(true)}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
-        >
-          + Create PM Schedule
-        </button>
-      </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
           <div className="text-sm text-gray-600">Total Schedules</div>
-          <div className="text-2xl font-bold text-gray-900">{schedules.length}</div>
+          <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
           <div className="text-sm text-gray-600">Due Soon</div>
-          <div className="text-2xl font-bold text-yellow-600">
-            {schedules.filter(s => s.status === 'due_soon').length}
-          </div>
+          <div className="text-2xl font-bold text-yellow-600">{stats.dueSoon}</div>
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
           <div className="text-sm text-gray-600">Overdue</div>
-          <div className="text-2xl font-bold text-red-600">
-            {schedules.filter(s => s.status === 'overdue').length}
-          </div>
+          <div className="text-2xl font-bold text-red-600">{stats.overdue}</div>
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
           <div className="text-sm text-gray-600">Completed This Month</div>
-          <div className="text-2xl font-bold text-green-600">12</div>
+          <div className="text-2xl font-bold text-green-600">{stats.completedThisMonth}</div>
         </div>
       </div>
 
@@ -400,21 +426,35 @@ export default function PreventiveMaintenancePage() {
                       <span className="text-sm text-gray-600">{schedule.assignedTo || 'Unassigned'}</span>
                     </td>
                     <td className="px-6 py-4 text-sm space-x-2">
-                      <button
-                        onClick={() => handleGenerateWorkOrder(schedule.id)}
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        Generate WO
-                      </button>
-                      <button className="text-gray-600 hover:text-gray-800">
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteSchedule(schedule.id)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        Delete
-                      </button>
+                      {schedule.status === 'scheduled' ? (
+                        <span className="text-green-600 text-xs font-medium">
+                          ✓ WO Generated
+                        </span>
+                      ) : canCreate ? (
+                        <button
+                          onClick={() => {
+                            if (confirm(`Generate work order for "${schedule.name}"?`)) {
+                              handleGenerateWorkOrder(schedule.id);
+                            }
+                          }}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          Generate WO
+                        </button>
+                      ) : null}
+                      {canCreate && (
+                        <button className="text-gray-600 hover:text-gray-800">
+                          Edit
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          onClick={() => handleDeleteSchedule(schedule.id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          Delete
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -654,6 +694,7 @@ export default function PreventiveMaintenancePage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </RoleGuard>
   );
 }

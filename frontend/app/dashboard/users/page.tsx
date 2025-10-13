@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
+import { getRoleDisplayName, getRoleColor, canPerformAction } from '@/lib/rolePermissions';
+import RoleGuard from '@/components/RoleGuard';
 
 interface User {
   id: string;
@@ -86,15 +88,14 @@ export default function UsersPage() {
     }
   };
 
-  const getRoleColor = (role?: string) => {
-    if (!role) return 'bg-gray-100 text-gray-800';
-    switch (role.toLowerCase()) {
-      case 'admin': return 'bg-purple-100 text-purple-800';
-      case 'manager': return 'bg-blue-100 text-blue-800';
-      case 'technician': return 'bg-green-100 text-green-800';
-      case 'viewer': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  const getRoleDescription = (role: string) => {
+    const descriptions: Record<string, string> = {
+      admin: 'Full access to all modules and settings. Can manage users and organization.',
+      manager: 'Access to work orders, assets, inventory, reports, and team management.',
+      technician: 'Access to work orders, assets, and field operations tools.',
+      viewer: 'Read-only access to reports, assets, and work orders.',
+    };
+    return descriptions[role.toLowerCase()] || 'Basic user access';
   };
 
   const getStatusColor = (status: string) => {
@@ -106,20 +107,27 @@ export default function UsersPage() {
     }
   };
 
+  const canCreate = canPerformAction(user?.roleId || null, 'create');
+  const canEdit = canPerformAction(user?.roleId || null, 'edit');
+  const canDelete = canPerformAction(user?.roleId || null, 'delete');
+
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-          <p className="text-gray-600 mt-1">Manage team members and their permissions</p>
+    <RoleGuard requiredModule="users">
+      <div>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
+            <p className="text-gray-600 mt-1">Manage team members and their permissions</p>
+          </div>
+          {canCreate && (
+            <button
+              onClick={() => setIsInviteModalOpen(true)}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
+            >
+              + Invite User
+            </button>
+          )}
         </div>
-        <button
-          onClick={() => setIsInviteModalOpen(true)}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
-        >
-          + Invite User
-        </button>
-      </div>
 
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
@@ -201,7 +209,7 @@ export default function UsersPage() {
                       <span className="text-sm text-gray-600">{u.email}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleColor(u.role)}`}>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleColor(u.role || null)}`}>
                         {u.role || 'User'}
                       </span>
                     </td>
@@ -216,16 +224,21 @@ export default function UsersPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      <button className="text-blue-600 hover:text-blue-800 mr-3">
-                        Edit
-                      </button>
-                      {u.id !== user?.id && (
+                      {canEdit && (
+                        <button className="text-blue-600 hover:text-blue-800 mr-3">
+                          Edit
+                        </button>
+                      )}
+                      {canDelete && u.id !== user?.id && (
                         <button
                           onClick={() => handleDeleteUser(u.id)}
                           className="text-red-600 hover:text-red-800"
                         >
                           Remove
                         </button>
+                      )}
+                      {!canEdit && !canDelete && (
+                        <span className="text-gray-400 text-xs">No actions</span>
                       )}
                     </td>
                   </tr>
@@ -318,10 +331,7 @@ export default function UsersPage() {
                         <option value="viewer">Viewer</option>
                       </select>
                       <p className="text-xs text-gray-500 mt-1">
-                        {inviteData.role === 'admin' && 'Full access to all features and settings'}
-                        {inviteData.role === 'manager' && 'Can manage work orders and assets'}
-                        {inviteData.role === 'technician' && 'Can view and complete assigned work orders'}
-                        {inviteData.role === 'viewer' && 'Read-only access to reports and dashboards'}
+                        {getRoleDescription(inviteData.role)}
                       </p>
                     </div>
 
@@ -354,6 +364,7 @@ export default function UsersPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </RoleGuard>
   );
 }

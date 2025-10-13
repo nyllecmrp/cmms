@@ -319,7 +319,7 @@ export default function SuperadminPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="text-3xl mb-3">💰</div>
             <h3 className="font-semibold text-gray-900 mb-2">Billing Overview</h3>
-            <p className="text-sm text-gray-600 mb-4">Revenue and subscription status</p>
+            <p className="text-sm text-gray-600 mb-4">Subscription and payment management</p>
             <button
               onClick={() => router.push('/superadmin/billing')}
               className="text-blue-600 hover:text-blue-700 font-medium text-sm"

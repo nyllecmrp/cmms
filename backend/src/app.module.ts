@@ -10,6 +10,7 @@ import { ModuleLicensingModule } from './modules/module-licensing/module-licensi
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { UsersModule } from './modules/users/users.module';
 import { LocationsModule } from './modules/locations/locations.module';
+import { PMSchedulesModule } from './modules/pm-schedules/pm-schedules.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { LocationsModule } from './modules/locations/locations.module';
     OrganizationsModule,
     UsersModule,
     LocationsModule,
+    PMSchedulesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
