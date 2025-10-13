@@ -15,7 +15,7 @@ export class PrismaService
         url: process.env.DATABASE_URL_CLOUD,
       });
       const adapter = new PrismaLibSQL(libsql);
-      super({ adapter });
+      super({ adapter: adapter as any });
     } else {
       // Use local SQLite file for development
       super();
