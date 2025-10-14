@@ -12,8 +12,20 @@ export class AppController {
   ) {}
 
   @Get()
-  getHello(): string {
-    return this.appService.getHello();
+  getHello() {
+    return {
+      status: 'ok',
+      message: this.appService.getHello(),
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  @Get('health')
+  healthCheck() {
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString()
+    };
   }
 
   @Get('seed')

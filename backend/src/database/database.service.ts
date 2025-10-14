@@ -7,7 +7,14 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     const connectionString = process.env.DATABASE_URL_CLOUD || process.env.DATABASE_URL || 'file:./dev.db';
-    this.db = new Database(connectionString);
+    console.log('🔌 Connecting to database:', connectionString.replace(/apikey=[^&]+/, 'apikey=***'));
+    try {
+      this.db = new Database(connectionString);
+      console.log('✅ Database connected successfully');
+    } catch (error) {
+      console.error('❌ Database connection failed:', error);
+      throw error;
+    }
   }
 
   async onModuleDestroy() {
