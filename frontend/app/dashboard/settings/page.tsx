@@ -43,7 +43,7 @@ export default function SettingsPage() {
       if (!user?.organizationId) return;
 
       try {
-        const org = await api.getOrganization(user.organizationId);
+        const org: any = await api.getOrganization(user.organizationId);
         setOrgData({
           name: org.name || '',
           industry: org.industry || '',
