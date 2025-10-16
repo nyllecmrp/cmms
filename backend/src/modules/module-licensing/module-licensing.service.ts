@@ -131,6 +131,9 @@ export class ModuleLicensingService {
 
     // Check dependencies
     const moduleDef = MODULE_DEFINITIONS[moduleCode];
+    if (!moduleDef) {
+      throw new BadRequestException(`Invalid module code: ${moduleCode}`);
+    }
     if (moduleDef.dependencies) {
       for (const depCode of moduleDef.dependencies) {
         const hasAccess = await this.hasModuleAccess(organizationId, depCode as ModuleCode);
@@ -205,8 +208,8 @@ export class ModuleLicensingService {
     const logId = randomBytes(16).toString('hex');
     await this.db.execute(
       `INSERT INTO ModuleAccessLog (
-        id, organizationId, userId, moduleCode, action, createdAt
-      ) VALUES (?, ?, ?, ?, ?, datetime('now'))`,
+        id, organizationId, userId, moduleCode, action
+      ) VALUES (?, ?, ?, ?, ?)`,
       [logId, organizationId, activatedById, moduleCode, 'activated']
     );
 
@@ -242,8 +245,8 @@ export class ModuleLicensingService {
     const logId = randomBytes(16).toString('hex');
     await this.db.execute(
       `INSERT INTO ModuleAccessLog (
-        id, organizationId, userId, moduleCode, action, createdAt
-      ) VALUES (?, ?, ?, ?, ?, datetime('now'))`,
+        id, organizationId, userId, moduleCode, action
+      ) VALUES (?, ?, ?, ?, ?)`,
       [logId, organizationId, deactivatedById, moduleCode, 'deactivated']
     );
 

@@ -30,14 +30,14 @@ export default function OrganizationModulesPage() {
         setLoading(true);
         setError(null);
 
-        // Fetch real data from backend API
-        const data = await api.getOrganizationModules(params.id as string);
-        setModules(data as Module[]);
+        // Fetch organization details and modules from backend API
+        const [modulesData, orgData] = await Promise.all([
+          api.getOrganizationModules(params.id as string),
+          api.getOrganization(params.id as string)
+        ]);
 
-        // Set organization info based on ID
-        const orgName = params.id === 'org-test-1' ? 'Acme Manufacturing' : 'Metro Hospital';
-        const orgTier = params.id === 'org-test-1' ? 'professional' : 'enterprise';
-        setOrganization({ name: orgName, tier: orgTier });
+        setModules(modulesData as Module[]);
+        setOrganization(orgData);
 
         setLoading(false);
       } catch (error: any) {

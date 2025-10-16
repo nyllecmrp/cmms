@@ -439,6 +439,44 @@ class ApiClient {
     });
   }
 
+  async deleteOrganization(id: string) {
+    return this.request(`/organizations/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async createOrganizationAdmin(organizationId: string, password: string, fullName: string) {
+    return this.request(`/organizations/${organizationId}/create-admin`, {
+      method: 'POST',
+      body: JSON.stringify({ password, fullName }),
+    });
+  }
+
+  // Users APIs
+  async getUsers(organizationId: string) {
+    return this.request(`/users?organizationId=${organizationId}`);
+  }
+
+  async createUser(data: any) {
+    return this.request('/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateUser(userId: string, data: any) {
+    return this.request(`/users/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteUser(userId: string) {
+    return this.request(`/users/${userId}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Locations APIs
   async getLocations(organizationId: string) {
     return this.request(`/locations?organizationId=${organizationId}`);

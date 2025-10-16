@@ -23,12 +23,20 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   const [inviteData, setInviteData] = useState({
     email: '',
     firstName: '',
     lastName: '',
     role: 'technician',
+  });
+
+  const [editData, setEditData] = useState({
+    firstName: '',
+    lastName: '',
+    roleId: '',
   });
 
   useEffect(() => {
@@ -72,6 +80,46 @@ export default function UsersPage() {
       setInviteData({ email: '', firstName: '', lastName: '', role: 'technician' });
     } catch (err: any) {
       setError(err.message || 'Failed to invite user');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditUser = (u: User) => {
+    setSelectedUser(u);
+    setEditData({
+      firstName: u.firstName,
+      lastName: u.lastName,
+      roleId: u.roleId || 'technician',
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+
+    setLoading(true);
+    setError('');
+
+    try {
+      await api.updateUser(selectedUser.id, {
+        firstName: editData.firstName,
+        lastName: editData.lastName,
+        roleId: editData.roleId,
+        status: 'active',
+      });
+
+      // Refresh users list
+      if (user?.organizationId) {
+        const data = await api.getUsers(user.organizationId);
+        setUsers(data as any[]);
+      }
+
+      setIsEditModalOpen(false);
+      setSelectedUser(null);
+    } catch (err: any) {
+      setError(err.message || 'Failed to update user');
     } finally {
       setLoading(false);
     }
@@ -209,8 +257,8 @@ export default function UsersPage() {
                       <span className="text-sm text-gray-600">{u.email}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleColor(u.role || null)}`}>
-                        {u.role || 'User'}
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleColor(u.roleId || null)}`}>
+                        {getRoleDisplayName(u.roleId || null)}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -225,7 +273,10 @@ export default function UsersPage() {
                     </td>
                     <td className="px-6 py-4 text-sm">
                       {canEdit && (
-                        <button className="text-blue-600 hover:text-blue-800 mr-3">
+                        <button
+                          onClick={() => handleEditUser(u)}
+                          className="text-blue-600 hover:text-blue-800 mr-3"
+                        >
                           Edit
                         </button>
                       )}
@@ -361,6 +412,94 @@ export default function UsersPage() {
                 </div>
               </form>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {isEditModalOpen && selectedUser && editData.firstName && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Edit User: {selectedUser.firstName} {selectedUser.lastName}
+            </h2>
+            <form onSubmit={handleUpdateUser} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    First Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={editData.firstName}
+                    onChange={(e) => setEditData({ ...editData, firstName: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Last Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={editData.lastName}
+                    onChange={(e) => setEditData({ ...editData, lastName: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={selectedUser.email}
+                  disabled
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
+                />
+                <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Role *
+                </label>
+                <select
+                  value={editData.roleId}
+                  onChange={(e) => setEditData({ ...editData, roleId: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                  required
+                >
+                  <option value="admin">Administrator</option>
+                  <option value="manager">Manager</option>
+                  <option value="technician">Technician</option>
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    setSelectedUser(null);
+                  }}
+                  className="flex-1 px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:bg-gray-400"
+                >
+                  {loading ? 'Updating...' : 'Update User'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -28,6 +28,32 @@ export class AppController {
     };
   }
 
+  @Get('debug-user')
+  async debugUser(@Query('id') id: string) {
+    try {
+      const users = await this.db.query(
+        'SELECT id, email, firstName, lastName FROM User WHERE id = ?',
+        [id]
+      );
+      return {
+        success: true,
+        query: 'SELECT id, email, firstName, lastName FROM User WHERE id = ?',
+        params: [id],
+        result: users,
+        resultType: typeof users,
+        isArray: Array.isArray(users),
+        length: users?.length,
+        firstItem: users?.[0]
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        stack: error.stack
+      };
+    }
+  }
+
   @Get('seed')
   async seedDatabase(@Query('secret') secret?: string) {
     // Simple secret protection - only allow if correct secret is provided

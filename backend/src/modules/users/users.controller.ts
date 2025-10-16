@@ -26,6 +26,11 @@ export class UsersController {
     return this.usersService.findAll(organizationId);
   }
 
+  @Post()
+  create(@Body() createData: any, @Request() req: any) {
+    return this.usersService.create(createData);
+  }
+
   @Post('invite')
   @RequireModule(ModuleKey.USERS)
   invite(@Body() inviteData: any, @Request() req: any) {

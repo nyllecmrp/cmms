@@ -17,6 +17,34 @@ export class UsersService {
     );
   }
 
+  async create(data: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    roleId: string;
+    organizationId: string;
+  }) {
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+    const userId = randomBytes(16).toString('hex');
+
+    await this.db.execute(
+      `INSERT INTO User (id, email, password, firstName, lastName, roleId, organizationId, status, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+      [userId, data.email, hashedPassword, data.firstName, data.lastName, data.roleId, data.organizationId, 'active']
+    );
+
+    const users = await this.db.query(
+      'SELECT id, email, firstName, lastName, roleId, status FROM User WHERE id = ?',
+      [userId]
+    );
+
+    return {
+      user: users[0],
+      message: 'User created successfully',
+    };
+  }
+
   async invite(data: {
     email: string;
     firstName: string;

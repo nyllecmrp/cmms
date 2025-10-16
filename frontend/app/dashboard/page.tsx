@@ -16,9 +16,16 @@ export default function DashboardPage() {
   });
   const [loading, setLoading] = useState(true);
 
+  // Redirect superadmin to their dashboard
+  useEffect(() => {
+    if (user && user.isSuperAdmin) {
+      router.push('/superadmin');
+    }
+  }, [user, router]);
+
   useEffect(() => {
     const fetchStats = async () => {
-      if (!user) return;
+      if (!user || user.isSuperAdmin) return;
       
       try {
         setLoading(true);

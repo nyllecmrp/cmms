@@ -9,15 +9,21 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 interface Organization {
   id: string;
   name: string;
+  email: string;
+  phone: string;
+  address?: string;
+  city?: string;
+  industry: string;
   tier: string;
   status: string;
+  maxUsers: number;
   users: number;
   activeModules: number;
 }
 
 export default function SuperadminPage() {
   const router = useRouter();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +41,13 @@ export default function SuperadminPage() {
     maxUsers: 10,
   });
   const [saveLoading, setSaveLoading] = useState(false);
+
+  // Redirect non-superadmin users to regular dashboard
+  useEffect(() => {
+    if (user && !user.isSuperAdmin) {
+      router.push('/dashboard');
+    }
+  }, [user, router]);
 
   useEffect(() => {
     // Fetch organizations from API
@@ -67,17 +80,33 @@ export default function SuperadminPage() {
   const handleAddOrganization = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaveLoading(true);
-    
+
     try {
       // Create organization via API
-      await api.createOrganization({
+      const result: any = await api.createOrganization({
         ...formData,
         country: 'Philippines', // Default to Philippines
       });
-      
-      // Show success message
-      alert(`✅ Organization "${formData.name}" created successfully!`);
-      
+
+      const createdOrgId = result.organization?.id;
+
+      // Ask if user wants to create admin account
+      const createAdmin = confirm(`✅ Organization "${formData.name}" created!\n\nWould you like to create an admin user account for this organization?\n\nEmail: ${formData.email}`);
+
+      if (createAdmin && createdOrgId) {
+        const fullName = prompt('Enter admin full name (e.g., John Doe):');
+        const password = prompt('Enter password for admin account:');
+
+        if (fullName && password) {
+          try {
+            await api.createOrganizationAdmin(createdOrgId, password, fullName);
+            alert(`✅ Admin user created successfully!\n\nEmail: ${formData.email}\nPassword: ${password}\n\nThe organization admin can now log in.`);
+          } catch (adminErr: any) {
+            alert(`❌ Failed to create admin user: ${adminErr.message}`);
+          }
+        }
+      }
+
       // Reset form and close modal
       setFormData({
         name: '',
@@ -90,7 +119,7 @@ export default function SuperadminPage() {
         maxUsers: 10,
       });
       setIsAddModalOpen(false);
-      
+
       // Refresh organizations list
       const data = await api.getOrganizations();
       setOrganizations(data as Organization[]);
@@ -104,14 +133,14 @@ export default function SuperadminPage() {
   const handleEditOrganization = (org: Organization) => {
     setSelectedOrg(org);
     setFormData({
-      name: org.name,
-      email: '',
-      phone: '',
-      address: '',
-      city: '',
-      industry: '',
-      tier: org.tier,
-      maxUsers: 10,
+      name: org.name || '',
+      email: org.email || '',
+      phone: org.phone || '',
+      address: org.address || '',
+      city: org.city || '',
+      industry: org.industry || '',
+      tier: org.tier || 'starter',
+      maxUsers: org.maxUsers || 10,
     });
     setIsEditModalOpen(true);
   };
@@ -131,7 +160,7 @@ export default function SuperadminPage() {
       
       // Show success message
       alert(`✅ Organization "${formData.name}" updated successfully!`);
-      
+
       // Reset and close modal
       setFormData({
         name: '',
@@ -145,14 +174,33 @@ export default function SuperadminPage() {
       });
       setSelectedOrg(null);
       setIsEditModalOpen(false);
-      
+
       // Refresh organizations list
       const data = await api.getOrganizations();
       setOrganizations(data as Organization[]);
-    } catch (err: any) {
-      alert(`❌ Failed to update organization: ${err.message || 'Unknown error'}`);
+    } catch (error: any) {
+      alert(`❌ Failed to update organization: ${error.message}`);
+      console.error('Update failed:', error);
     } finally {
       setSaveLoading(false);
+    }
+  };
+
+  const handleDeleteOrganization = async (org: Organization) => {
+    if (!confirm(`Are you sure you want to delete "${org.name}"? This will permanently delete all data including users, assets, and work orders.`)) {
+      return;
+    }
+
+    try {
+      await api.deleteOrganization(org.id);
+      alert(`✅ Organization "${org.name}" deleted successfully!`);
+
+      // Refresh organizations list
+      const data = await api.getOrganizations();
+      setOrganizations(data as Organization[]);
+    } catch (error: any) {
+      alert(`❌ Failed to delete organization: ${error.message}`);
+      console.error('Delete failed:', error);
     }
   };
 
@@ -201,8 +249,20 @@ export default function SuperadminPage() {
         <div className="bg-white rounded-lg shadow">
           <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-900">Organizations</h2>
-            <button 
-              onClick={() => setIsAddModalOpen(true)}
+            <button
+              onClick={() => {
+                setFormData({
+                  name: '',
+                  email: '',
+                  phone: '',
+                  address: '',
+                  city: '',
+                  industry: '',
+                  tier: 'starter',
+                  maxUsers: 10,
+                });
+                setIsAddModalOpen(true);
+              }}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold"
             >
               + Add Organization
@@ -266,11 +326,23 @@ export default function SuperadminPage() {
                         >
                           Manage Modules
                         </button>
-                        <button 
+                        <button
+                          onClick={() => router.push(`/superadmin/organizations/${org.id}/users`)}
+                          className="text-green-600 hover:text-green-800 font-medium"
+                        >
+                          Users
+                        </button>
+                        <button
                           onClick={() => handleEditOrganization(org)}
                           className="text-gray-600 hover:text-gray-800"
                         >
                           Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteOrganization(org)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          Delete
                         </button>
                       </td>
                     </tr>

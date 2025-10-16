@@ -125,7 +125,7 @@ export class AuthService {
    */
   async validateUser(payload: any) {
     const users = await this.db.query(
-      'SELECT id, email, firstName, lastName, roleId, organizationId FROM User WHERE id = ?',
+      'SELECT id, email, firstName, lastName, roleId, organizationId, isSuperAdmin FROM User WHERE id = ?',
       [payload.sub]
     );
 

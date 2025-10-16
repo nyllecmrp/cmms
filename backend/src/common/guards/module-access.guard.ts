@@ -33,6 +33,11 @@ export class ModuleAccessGuard implements CanActivate {
       throw new ForbiddenException('User not authenticated');
     }
 
+    // Superadmins have access to all modules
+    if (user.isSuperAdmin) {
+      return true;
+    }
+
     // Use roleId from JWT token (users have roleId, not role)
     const userRole = (user.roleId || user.role) as UserRole;
 

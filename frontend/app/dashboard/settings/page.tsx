@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
@@ -29,13 +29,36 @@ export default function SettingsPage() {
   });
 
   const [orgData, setOrgData] = useState({
-    name: user?.organizationId === 'org-test-1' ? 'Acme Manufacturing' : 'Metro Hospital',
-    industry: user?.organizationId === 'org-test-1' ? 'Manufacturing' : 'Healthcare',
+    name: '',
+    industry: '',
     address: '',
     city: '',
     country: 'Philippines',
     timezone: 'Asia/Manila',
   });
+
+  // Fetch organization data on mount
+  useEffect(() => {
+    const fetchOrgData = async () => {
+      if (!user?.organizationId) return;
+
+      try {
+        const org = await api.getOrganization(user.organizationId);
+        setOrgData({
+          name: org.name || '',
+          industry: org.industry || '',
+          address: org.address || '',
+          city: org.city || '',
+          country: org.country || 'Philippines',
+          timezone: 'Asia/Manila',
+        });
+      } catch (err) {
+        console.error('Failed to fetch organization data:', err);
+      }
+    };
+
+    fetchOrgData();
+  }, [user?.organizationId]);
 
   const [notificationSettings, setNotificationSettings] = useState({
     emailNotifications: true,
