@@ -152,10 +152,6 @@ class ApiClient {
   }
 
   // User Management APIs
-  async getUsers(organizationId: string) {
-    return this.request(`/users?organizationId=${organizationId}`);
-  }
-
   async inviteUser(data: {
     email: string;
     firstName: string;
@@ -166,23 +162,6 @@ class ApiClient {
     return this.request('/users/invite', {
       method: 'POST',
       body: JSON.stringify(data),
-    });
-  }
-
-  async updateUser(userId: string, data: {
-    firstName?: string;
-    lastName?: string;
-    roleId?: string;
-  }) {
-    return this.request(`/users/${userId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteUser(userId: string) {
-    return this.request(`/users/${userId}`, {
-      method: 'DELETE',
     });
   }
 
