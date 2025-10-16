@@ -52,7 +52,7 @@ export default function OrganizationUsersPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const orgData = await api.getOrganization(params.id as string);
+        const orgData: any = await api.getOrganization(params.id as string);
         setOrganization(orgData);
 
         // Fetch users for this organization
