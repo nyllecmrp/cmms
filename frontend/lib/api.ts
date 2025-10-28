@@ -375,6 +375,13 @@ class ApiClient {
     });
   }
 
+  async updateWorkOrderStatus(id: string, status: string) {
+    return this.request(`/work-orders/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  }
+
   // Organizations APIs
   async getOrganizations() {
     return this.request('/organizations');

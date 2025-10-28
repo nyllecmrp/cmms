@@ -163,8 +163,8 @@ export default function ReportsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Work Order Completion Rate</p>
-              <p className="text-3xl font-bold text-gray-900">94.3%</p>
-              <p className="text-xs text-green-600 mt-1">↑ 2.5% from last month</p>
+              <p className="text-3xl font-bold text-gray-900">0%</p>
+              <p className="text-xs text-gray-400 mt-1">No data yet</p>
             </div>
             <div className="text-4xl">✅</div>
           </div>
@@ -174,8 +174,8 @@ export default function ReportsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">MTTR (Mean Time to Repair)</p>
-              <p className="text-3xl font-bold text-gray-900">3.7h</p>
-              <p className="text-xs text-green-600 mt-1">↓ 0.8h from last month</p>
+              <p className="text-3xl font-bold text-gray-900">0h</p>
+              <p className="text-xs text-gray-400 mt-1">No data yet</p>
             </div>
             <div className="text-4xl">⚡</div>
           </div>
@@ -185,8 +185,8 @@ export default function ReportsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">PM Compliance Rate</p>
-              <p className="text-3xl font-bold text-gray-900">98.3%</p>
-              <p className="text-xs text-green-600 mt-1">↑ 1.2% from last month</p>
+              <p className="text-3xl font-bold text-gray-900">0%</p>
+              <p className="text-xs text-gray-400 mt-1">No data yet</p>
             </div>
             <div className="text-4xl">📅</div>
           </div>
@@ -196,8 +196,8 @@ export default function ReportsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total Maintenance Cost</p>
-              <p className="text-3xl font-bold text-gray-900">₱125K</p>
-              <p className="text-xs text-red-600 mt-1">↑ 5.3% from last month</p>
+              <p className="text-3xl font-bold text-gray-900">₱0</p>
+              <p className="text-xs text-gray-400 mt-1">No data yet</p>
             </div>
             <div className="text-4xl">💰</div>
           </div>

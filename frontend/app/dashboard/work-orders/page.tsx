@@ -143,6 +143,22 @@ export default function WorkOrdersPage() {
     setIsFormOpen(true);
   };
 
+  const handleStatusChange = async (workOrderId: string, newStatus: string) => {
+    try {
+      await api.updateWorkOrderStatus(workOrderId, newStatus);
+
+      // Refresh work order list
+      const userData = localStorage.getItem('user');
+      const user = userData ? JSON.parse(userData) : null;
+      const organizationId = user?.organizationId || 'org-test-1';
+      const data = await api.getWorkOrders(organizationId);
+      setWorkOrders(data as WorkOrder[]);
+    } catch (error: any) {
+      console.error('Failed to update work order status:', error);
+      alert(error.message || 'Failed to update work order status');
+    }
+  };
+
   const handleDeleteWorkOrder = async (workOrderId: string) => {
     if (!confirm('Are you sure you want to delete this work order?')) {
       return;
@@ -356,18 +372,43 @@ export default function WorkOrdersPage() {
                       <span className="text-sm text-gray-600">{wo.dueDate ? new Date(wo.dueDate).toLocaleDateString() : '-'}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <button
-                        onClick={() => handleEditWorkOrder(wo)}
-                        className="text-gray-600 hover:text-gray-800 mr-3"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteWorkOrder(wo.id)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        Delete
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {/* Status action buttons */}
+                        {(wo.status === 'open' || wo.status === 'assigned') && (
+                          <button
+                            onClick={() => handleStatusChange(wo.id, 'in_progress')}
+                            className="px-3 py-1 text-xs font-medium text-white bg-yellow-600 hover:bg-yellow-700 rounded"
+                          >
+                            Start
+                          </button>
+                        )}
+                        {wo.status === 'in_progress' && (
+                          <button
+                            onClick={() => handleStatusChange(wo.id, 'completed')}
+                            className="px-3 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded"
+                          >
+                            Complete
+                          </button>
+                        )}
+
+                        {/* Edit and Delete buttons */}
+                        {canEdit && (
+                          <button
+                            onClick={() => handleEditWorkOrder(wo)}
+                            className="text-gray-600 hover:text-gray-800"
+                          >
+                            Edit
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            onClick={() => handleDeleteWorkOrder(wo.id)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

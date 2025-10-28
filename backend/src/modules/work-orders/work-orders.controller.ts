@@ -53,4 +53,10 @@ export class WorkOrdersController {
   remove(@Param('id') id: string) {
     return this.workOrdersService.remove(id);
   }
+
+  @Patch(':id/status')
+  @RequireModule(ModuleKey.WORK_ORDERS)
+  async updateStatus(@Param('id') id: string, @Body() body: { status: string }) {
+    return this.workOrdersService.updateStatus(id, body.status);
+  }
 }

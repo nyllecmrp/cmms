@@ -88,6 +88,7 @@ export default function DashboardLayout({
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: '📊', moduleCode: '', moduleKey: '' },
+    { name: 'My Work', href: '/dashboard/my-work', icon: '👷', moduleCode: '', moduleKey: 'my-work' },
     { name: 'Assets', href: '/dashboard/assets', icon: '🔧', moduleCode: '', moduleKey: 'assets' },
     { name: 'Work Orders', href: '/dashboard/work-orders', icon: '📋', moduleCode: '', moduleKey: 'work-orders' },
     { name: 'Work Requests', href: '/dashboard/work-requests', icon: '📝', locked: true, moduleCode: 'work_request_management', moduleKey: 'work-requests' },

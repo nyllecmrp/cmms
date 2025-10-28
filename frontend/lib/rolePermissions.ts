@@ -12,6 +12,7 @@ export enum UserRole {
 
 export enum ModuleKey {
   // Core Modules
+  MY_WORK = 'my-work',
   WORK_ORDERS = 'work-orders',
   ASSETS = 'assets',
   PREVENTIVE_MAINTENANCE = 'preventive-maintenance',
@@ -56,6 +57,7 @@ const ROLE_MODULE_ACCESS: Record<UserRole, ModuleKey[] | 'all'> = {
   [UserRole.ADMIN]: 'all',
   
   [UserRole.MANAGER]: [
+    ModuleKey.MY_WORK,
     ModuleKey.WORK_ORDERS,
     ModuleKey.WORK_ORDERS_ADVANCED,
     ModuleKey.ASSETS,
@@ -82,8 +84,9 @@ const ROLE_MODULE_ACCESS: Record<UserRole, ModuleKey[] | 'all'> = {
     ModuleKey.ENERGY,
     ModuleKey.FAILURE_ANALYSIS,
   ],
-  
+
   [UserRole.TECHNICIAN]: [
+    ModuleKey.MY_WORK,
     ModuleKey.WORK_ORDERS,
     ModuleKey.WORK_REQUESTS,
     ModuleKey.ASSETS,

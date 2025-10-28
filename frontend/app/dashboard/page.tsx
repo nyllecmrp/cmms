@@ -16,10 +16,14 @@ export default function DashboardPage() {
   });
   const [loading, setLoading] = useState(true);
 
-  // Redirect superadmin to their dashboard
+  // Redirect based on user role
   useEffect(() => {
-    if (user && user.isSuperAdmin) {
+    if (!user) return;
+
+    if (user.isSuperAdmin) {
       router.push('/superadmin');
+    } else if (user.roleId === 'technician') {
+      router.push('/dashboard/my-work');
     }
   }, [user, router]);
 

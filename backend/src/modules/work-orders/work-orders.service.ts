@@ -315,6 +315,82 @@ export class WorkOrdersService {
     return { id };
   }
 
+  async updateStatus(id: string, status: string) {
+    // Get current work order state
+    const currentRows = await this.db.query(
+      'SELECT * FROM WorkOrder WHERE id = ?',
+      [id]
+    );
+
+    if (currentRows.length === 0) {
+      throw new Error('Work order not found');
+    }
+
+    const current = currentRows[0];
+
+    // Status transition validation
+    const validTransitions: Record<string, string[]> = {
+      'open': ['assigned', 'in_progress', 'on_hold'],
+      'assigned': ['in_progress', 'on_hold', 'completed'],
+      'in_progress': ['completed', 'on_hold'],
+      'on_hold': ['assigned', 'in_progress'],
+      'completed': ['closed'],
+      'closed': [],
+    };
+
+    // Check if status transition is valid
+    if (current.status !== status) {
+      const allowedTransitions = validTransitions[current.status] || [];
+      if (!allowedTransitions.includes(status)) {
+        throw new Error(
+          `Invalid status transition from '${current.status}' to '${status}'. Allowed: ${allowedTransitions.join(', ')}`,
+        );
+      }
+    }
+
+    const updates: string[] = ['status = ?', 'updatedAt = datetime(\'now\')'];
+    const values: any[] = [status];
+
+    // Auto-set actualStart when status changes to 'in_progress'
+    if (status === 'in_progress' && current.status !== 'in_progress' && !current.actualStart) {
+      updates.push('actualStart = datetime(\'now\')');
+    }
+
+    // Auto-set actualEnd and completedAt when status changes to completed
+    if (status === 'completed' && current.status !== 'completed') {
+      if (!current.actualEnd) {
+        updates.push('actualEnd = datetime(\'now\')');
+      }
+      updates.push('completedAt = datetime(\'now\')');
+    }
+
+    values.push(id);
+
+    await this.db.execute(
+      `UPDATE WorkOrder SET ${updates.join(', ')} WHERE id = ?`,
+      values
+    );
+
+    // Fetch the updated work order with relations
+    const workOrders = await this.db.query(
+      `SELECT
+        w.*,
+        a.id as asset_id, a.assetNumber as asset_assetNumber, a.name as asset_name,
+        assigned.id as assignedTo_id, assigned.email as assignedTo_email,
+        assigned.firstName as assignedTo_firstName, assigned.lastName as assignedTo_lastName,
+        creator.id as createdBy_id, creator.email as createdBy_email,
+        creator.firstName as createdBy_firstName, creator.lastName as createdBy_lastName
+      FROM WorkOrder w
+      LEFT JOIN Asset a ON w.assetId = a.id
+      LEFT JOIN User assigned ON w.assignedToId = assigned.id
+      LEFT JOIN User creator ON w.createdById = creator.id
+      WHERE w.id = ?`,
+      [id]
+    );
+
+    return this.formatWorkOrderWithRelations(workOrders[0]);
+  }
+
   private formatWorkOrderWithRelations(row: any, includeFullAsset = false) {
     if (!row) return null;
 
