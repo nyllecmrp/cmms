@@ -18,15 +18,24 @@ export default function RegisterPage() {
     address: '',
     city: '',
     industry: '',
+    customIndustry: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showCustomIndustry, setShowCustomIndustry] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
+
+    // Show custom industry input if "other" is selected
+    if (name === 'industry') {
+      setShowCustomIndustry(value === 'other');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,6 +56,11 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
+      // Use custom industry if "other" was selected
+      const finalIndustry = formData.industry === 'other' && formData.customIndustry
+        ? formData.customIndustry
+        : formData.industry;
+
       // Create organization
       const orgResult: any = await api.createOrganization({
         name: formData.organizationName,
@@ -54,7 +68,7 @@ export default function RegisterPage() {
         phone: formData.phone,
         address: formData.address,
         city: formData.city,
-        industry: formData.industry,
+        industry: finalIndustry,
         tier: 'trial', // Set to trial tier
         maxUsers: 5,
       });
@@ -152,6 +166,24 @@ export default function RegisterPage() {
                       <option value="other">Other</option>
                     </select>
                   </div>
+
+                  {showCustomIndustry && (
+                    <div>
+                      <label htmlFor="customIndustry" className="block text-sm font-medium text-gray-700 mb-2">
+                        Specify Industry *
+                      </label>
+                      <input
+                        id="customIndustry"
+                        name="customIndustry"
+                        type="text"
+                        value={formData.customIndustry}
+                        onChange={handleChange}
+                        required={showCustomIndustry}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                        placeholder="Enter your industry"
+                      />
+                    </div>
+                  )}
 
                   <div>
                     <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
