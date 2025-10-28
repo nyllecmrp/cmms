@@ -36,4 +36,9 @@ export class OrganizationsController {
   createAdmin(@Param('id') id: string, @Body() body: { password: string; fullName: string }) {
     return this.organizationsService.createAdminUser(id, body.password, body.fullName);
   }
+
+  @Get(':id/trial-status')
+  getTrialStatus(@Param('id') id: string) {
+    return this.organizationsService.getTrialStatus(id);
+  }
 }

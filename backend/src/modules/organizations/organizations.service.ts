@@ -169,4 +169,50 @@ export class OrganizationsService {
       user: { id: userId, email: org.email, firstName, lastName, role: 'admin' }
     };
   }
+
+  async getTrialStatus(organizationId: string) {
+    // Get organization details
+    const orgs = await this.db.query('SELECT * FROM Organization WHERE id = ?', [organizationId]);
+    if (!orgs || orgs.length === 0) {
+      throw new BadRequestException('Organization not found');
+    }
+    const org = orgs[0];
+
+    // Check if it's a trial organization
+    if (org.tier !== 'trial') {
+      return {
+        isTrial: false,
+        tier: org.tier,
+      };
+    }
+
+    // Get module licenses with expiration dates
+    const licenses = await this.db.query(
+      'SELECT expiresAt FROM ModuleLicense WHERE organizationId = ? AND expiresAt IS NOT NULL ORDER BY expiresAt ASC LIMIT 1',
+      [organizationId]
+    );
+
+    if (!licenses || licenses.length === 0) {
+      return {
+        isTrial: true,
+        tier: 'trial',
+        hasExpiration: false,
+      };
+    }
+
+    const expiresAt = new Date(licenses[0].expiresAt);
+    const now = new Date();
+    const daysRemaining = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const isExpired = daysRemaining <= 0;
+
+    return {
+      isTrial: true,
+      tier: 'trial',
+      hasExpiration: true,
+      expiresAt: licenses[0].expiresAt,
+      daysRemaining: Math.max(0, daysRemaining),
+      isExpired,
+      showWarning: daysRemaining <= 3 && daysRemaining > 0,
+    };
+  }
 }

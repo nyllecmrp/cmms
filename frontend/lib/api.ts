@@ -438,6 +438,10 @@ class ApiClient {
     });
   }
 
+  async getTrialStatus(organizationId: string) {
+    return this.request(`/organizations/${organizationId}/trial-status`);
+  }
+
   // Users APIs
   async getUsers(organizationId: string) {
     return this.request(`/users?organizationId=${organizationId}`);

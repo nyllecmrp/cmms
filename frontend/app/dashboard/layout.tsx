@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import LockedModuleModal from '@/components/LockedModuleModal';
+import TrialBanner from '@/components/TrialBanner';
 import api from '@/lib/api';
 import { canAccessModule, getRoleDisplayName, getRoleColor } from '@/lib/rolePermissions';
 
@@ -207,6 +208,7 @@ export default function DashboardLayout({
 
           {/* Page Content */}
           <main className="p-6">
+            <TrialBanner />
             {children}
           </main>
         </div>
