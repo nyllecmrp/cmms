@@ -32,7 +32,7 @@ export default function HomePage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
           <div className="bg-white p-6 rounded-lg shadow-md">
             <div className="text-blue-600 text-3xl mb-3">🔧</div>
-            <h3 className="font-semibold text-lg mb-2">Asset Management</h3>
+            <h3 className="font-semibold text-lg mb-2 text-gray-900">Asset Management</h3>
             <p className="text-gray-600 text-sm">
               Track equipment, facilities, and vehicles with detailed maintenance history
             </p>
@@ -40,7 +40,7 @@ export default function HomePage() {
 
           <div className="bg-white p-6 rounded-lg shadow-md">
             <div className="text-blue-600 text-3xl mb-3">📋</div>
-            <h3 className="font-semibold text-lg mb-2">Work Orders</h3>
+            <h3 className="font-semibold text-lg mb-2 text-gray-900">Work Orders</h3>
             <p className="text-gray-600 text-sm">
               Create, assign, and track maintenance tasks with complete lifecycle management
             </p>
@@ -48,17 +48,11 @@ export default function HomePage() {
 
           <div className="bg-white p-6 rounded-lg shadow-md">
             <div className="text-blue-600 text-3xl mb-3">📊</div>
-            <h3 className="font-semibold text-lg mb-2">Modular Licensing</h3>
+            <h3 className="font-semibold text-lg mb-2 text-gray-900">Modular Licensing</h3>
             <p className="text-gray-600 text-sm">
               Pay only for the modules you need with flexible Philippine pricing
             </p>
           </div>
-        </div>
-
-        <div className="mt-12 pt-8 border-t border-gray-300">
-          <p className="text-sm text-gray-500">
-            Starting at <span className="font-semibold text-gray-700">₱4,750/month</span> for 5 users
-          </p>
         </div>
       </div>
     </div>

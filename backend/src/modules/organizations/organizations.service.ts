@@ -81,12 +81,16 @@ export class OrganizationsService {
     );
 
     // Automatically activate the 5 core modules for new organizations
+    // For trial tier, set expiration to 15 days from now
+    const isTrial = createData.tier === 'trial';
+    const expiresAt = isTrial ? new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString() : null;
+
     for (const moduleCode of CORE_MODULES) {
       const licenseId = randomBytes(16).toString('hex');
       await this.db.execute(
-        `INSERT INTO ModuleLicense (id, organizationId, moduleCode, status, activatedAt, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, datetime('now'), datetime('now'), datetime('now'))`,
-        [licenseId, orgId, moduleCode, 'active']
+        `INSERT INTO ModuleLicense (id, organizationId, moduleCode, status, activatedAt, expiresAt, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, datetime('now'), ?, datetime('now'), datetime('now'))`,
+        [licenseId, orgId, moduleCode, 'active', expiresAt]
       );
     }
 

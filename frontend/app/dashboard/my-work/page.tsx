@@ -506,7 +506,7 @@ export default function MyWorkPage() {
                       value={actualHours}
                       onChange={(e) => setActualHours(e.target.value)}
                       placeholder="Enter hours worked"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm text-gray-900"
                     />
                     <button
                       onClick={handleUpdateHours}
