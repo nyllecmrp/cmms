@@ -24,66 +24,61 @@ export default function ReportsPage() {
   const { user } = useAuth();
   const [selectedPeriod, setSelectedPeriod] = useState('30days');
   const [selectedReport, setSelectedReport] = useState('overview');
+  const [hasData, setHasData] = useState(false);
 
-  // Mock data for charts
+  // Empty data - will be replaced with real data from backend in future
   const workOrderTrends = [
-    { month: 'Jan', completed: 45, pending: 12, overdue: 3 },
-    { month: 'Feb', completed: 52, pending: 15, overdue: 2 },
-    { month: 'Mar', completed: 48, pending: 18, overdue: 5 },
-    { month: 'Apr', completed: 61, pending: 10, overdue: 1 },
-    { month: 'May', completed: 55, pending: 14, overdue: 4 },
-    { month: 'Jun', completed: 67, pending: 8, overdue: 2 },
+    { month: 'Jan', completed: 0, pending: 0, overdue: 0 },
+    { month: 'Feb', completed: 0, pending: 0, overdue: 0 },
+    { month: 'Mar', completed: 0, pending: 0, overdue: 0 },
+    { month: 'Apr', completed: 0, pending: 0, overdue: 0 },
+    { month: 'May', completed: 0, pending: 0, overdue: 0 },
+    { month: 'Jun', completed: 0, pending: 0, overdue: 0 },
   ];
 
   const assetStatusData = [
-    { name: 'Operational', value: 234, color: '#10b981' },
-    { name: 'Maintenance', value: 45, color: '#f59e0b' },
-    { name: 'Down', value: 12, color: '#ef4444' },
-    { name: 'Retired', value: 8, color: '#6b7280' },
+    { name: 'Operational', value: 0, color: '#10b981' },
+    { name: 'Maintenance', value: 0, color: '#f59e0b' },
+    { name: 'Down', value: 0, color: '#ef4444' },
+    { name: 'Retired', value: 0, color: '#6b7280' },
   ];
 
   const costAnalysis = [
-    { month: 'Jan', labor: 45000, parts: 28000, external: 12000 },
-    { month: 'Feb', labor: 52000, parts: 31000, external: 15000 },
-    { month: 'Mar', labor: 48000, parts: 29000, external: 13000 },
-    { month: 'Apr', labor: 61000, parts: 35000, external: 18000 },
-    { month: 'May', labor: 55000, parts: 32000, external: 16000 },
-    { month: 'Jun', labor: 67000, parts: 38000, external: 20000 },
+    { month: 'Jan', labor: 0, parts: 0, external: 0 },
+    { month: 'Feb', labor: 0, parts: 0, external: 0 },
+    { month: 'Mar', labor: 0, parts: 0, external: 0 },
+    { month: 'Apr', labor: 0, parts: 0, external: 0 },
+    { month: 'May', labor: 0, parts: 0, external: 0 },
+    { month: 'Jun', labor: 0, parts: 0, external: 0 },
   ];
 
   const mttrData = [
-    { week: 'Week 1', mttr: 4.2 },
-    { week: 'Week 2', mttr: 3.8 },
-    { week: 'Week 3', mttr: 4.5 },
-    { week: 'Week 4', mttr: 3.2 },
-    { week: 'Week 5', mttr: 3.9 },
-    { week: 'Week 6', mttr: 3.5 },
+    { week: 'Week 1', mttr: 0 },
+    { week: 'Week 2', mttr: 0 },
+    { week: 'Week 3', mttr: 0 },
+    { week: 'Week 4', mttr: 0 },
+    { week: 'Week 5', mttr: 0 },
+    { week: 'Week 6', mttr: 0 },
   ];
 
   const assetCategoryData = [
-    { category: 'Equipment', count: 125, color: '#3b82f6' },
-    { category: 'Facilities', count: 89, color: '#8b5cf6' },
-    { category: 'Vehicles', count: 34, color: '#ec4899' },
-    { category: 'IT Assets', count: 67, color: '#14b8a6' },
-    { category: 'Others', count: 24, color: '#f97316' },
+    { category: 'Equipment', count: 0, color: '#3b82f6' },
+    { category: 'Facilities', count: 0, color: '#8b5cf6' },
+    { category: 'Vehicles', count: 0, color: '#ec4899' },
+    { category: 'IT Assets', count: 0, color: '#14b8a6' },
+    { category: 'Others', count: 0, color: '#f97316' },
   ];
 
   const pmComplianceData = [
-    { month: 'Jan', scheduled: 100, completed: 95, missed: 5 },
-    { month: 'Feb', scheduled: 98, completed: 92, missed: 6 },
-    { month: 'Mar', scheduled: 105, completed: 102, missed: 3 },
-    { month: 'Apr', scheduled: 110, completed: 108, missed: 2 },
-    { month: 'May', scheduled: 107, completed: 105, missed: 2 },
-    { month: 'Jun', scheduled: 115, completed: 113, missed: 2 },
+    { month: 'Jan', scheduled: 0, completed: 0, missed: 0 },
+    { month: 'Feb', scheduled: 0, completed: 0, missed: 0 },
+    { month: 'Mar', scheduled: 0, completed: 0, missed: 0 },
+    { month: 'Apr', scheduled: 0, completed: 0, missed: 0 },
+    { month: 'May', scheduled: 0, completed: 0, missed: 0 },
+    { month: 'Jun', scheduled: 0, completed: 0, missed: 0 },
   ];
 
-  const topAssetsByDowntime = [
-    { asset: 'PUMP-001', hours: 45.5 },
-    { asset: 'CT-SCAN-01', hours: 38.2 },
-    { asset: 'HVAC-05', hours: 32.8 },
-    { asset: 'VEHICLE-12', hours: 28.4 },
-    { asset: 'GENERATOR-03', hours: 24.1 },
-  ];
+  const topAssetsByDowntime = [];
 
   const exportReport = (format: string) => {
     alert(`Exporting report as ${format.toUpperCase()}... (Feature coming soon)`);
