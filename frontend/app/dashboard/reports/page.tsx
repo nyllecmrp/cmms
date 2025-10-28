@@ -78,7 +78,7 @@ export default function ReportsPage() {
     { month: 'Jun', scheduled: 0, completed: 0, missed: 0 },
   ];
 
-  const topAssetsByDowntime = [];
+  const topAssetsByDowntime: any[] = [];
 
   const exportReport = (format: string) => {
     alert(`Exporting report as ${format.toUpperCase()}... (Feature coming soon)`);
