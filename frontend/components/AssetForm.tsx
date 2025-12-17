@@ -171,8 +171,7 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
           ...formData,
           locationId: formData.locationId || undefined,
           parentAssetId: formData.parentAssetId || undefined,
-          maintenanceParts: partsJson,
-        });
+        } as any);
       }
 
       // In production, upload files here after asset creation

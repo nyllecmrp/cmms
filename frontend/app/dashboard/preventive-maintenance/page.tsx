@@ -317,7 +317,7 @@ export default function PreventiveMaintenancePage() {
       // Find the full schedule data from the schedules list to get the original data
       const fetchScheduleDetails = async () => {
         try {
-          const scheduleData = await api.getPMSchedule(selectedSchedule.id);
+          const scheduleData = await api.getPMSchedule(selectedSchedule.id) as any;
 
           setFormData({
             name: scheduleData.name || '',
@@ -509,7 +509,7 @@ export default function PreventiveMaintenancePage() {
   // Clone PM schedule
   const clonePMSchedule = async (schedule: PMSchedule) => {
     try {
-      const scheduleData = await api.getPMSchedule(schedule.id);
+      const scheduleData = await api.getPMSchedule(schedule.id) as any;
 
       setFormData({
         name: `${scheduleData.name} (Copy)`,

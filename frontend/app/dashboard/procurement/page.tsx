@@ -188,9 +188,9 @@ export default function ProcurementPage() {
     try {
       await api.markPurchaseRequestAsPurchased(id, actualCost);
       // Refresh data
-      const requestsData = await api.getPurchaseRequests(user.organizationId);
+      const requestsData = await api.getPurchaseRequests(user!.organizationId);
       setPurchaseRequests(requestsData as PurchaseRequest[]);
-      const statsData = await api.getPurchaseRequestStats(user.organizationId);
+      const statsData = await api.getPurchaseRequestStats(user!.organizationId);
       setStats(statsData as Stats);
     } catch (error) {
       console.error('Failed to mark as purchased:', error);
@@ -248,6 +248,7 @@ export default function ProcurementPage() {
         notes: '',
         paymentTerms: '30 days',
         shippingMethod: 'Standard',
+        shippingCost: '0',
         termsAndConditions: 'Standard terms and conditions apply.',
       });
       await fetchPurchaseOrders();
