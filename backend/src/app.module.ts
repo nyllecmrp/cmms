@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
@@ -12,6 +13,8 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
 import { UsersModule } from './modules/users/users.module';
 import { LocationsModule } from './modules/locations/locations.module';
 import { PMSchedulesModule } from './modules/pm-schedules/pm-schedules.module';
+import { PurchaseRequestsModule } from './modules/purchase-requests/purchase-requests.module';
+import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.module';
 
 @Module({
   imports: [
@@ -19,6 +22,7 @@ import { PMSchedulesModule } from './modules/pm-schedules/pm-schedules.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
+    ScheduleModule.forRoot(),
     DatabaseModule,
     AuthModule,
     AssetsModule,
@@ -29,6 +33,8 @@ import { PMSchedulesModule } from './modules/pm-schedules/pm-schedules.module';
     UsersModule,
     LocationsModule,
     PMSchedulesModule,
+    PurchaseRequestsModule,
+    PurchaseOrdersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

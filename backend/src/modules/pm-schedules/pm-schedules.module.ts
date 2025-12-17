@@ -1,11 +1,15 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { PMSchedulesService } from './pm-schedules.service';
 import { PMSchedulesController } from './pm-schedules.controller';
+import { PMSchedulesPurchaseService } from './pm-schedules-purchase.service';
+import { PMSchedulesSchedulerService } from './pm-schedules-scheduler.service';
+import { DatabaseModule } from '../../database/database.module';
+import { PurchaseRequestsModule } from '../purchase-requests/purchase-requests.module';
 
 @Module({
-  imports: [],
+  imports: [DatabaseModule, forwardRef(() => PurchaseRequestsModule)],
   controllers: [PMSchedulesController],
-  providers: [PMSchedulesService],
-  exports: [PMSchedulesService],
+  providers: [PMSchedulesService, PMSchedulesPurchaseService, PMSchedulesSchedulerService],
+  exports: [PMSchedulesService, PMSchedulesPurchaseService, PMSchedulesSchedulerService],
 })
 export class PMSchedulesModule {}

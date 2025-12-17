@@ -46,8 +46,36 @@ export interface UpdateWorkOrderDto {
 export class WorkOrdersService {
   constructor(private db: DatabaseService) {}
 
+  private async generateWorkOrderNumber(organizationId: string): Promise<string> {
+    const currentYear = new Date().getFullYear();
+    const existingWOs = await this.db.query(
+      `SELECT workOrderNumber FROM WorkOrder
+       WHERE organizationId = ? AND workOrderNumber LIKE ?
+       ORDER BY workOrderNumber DESC LIMIT 1`,
+      [organizationId, `WO-${currentYear}-%`]
+    );
+
+    let nextNumber = 1;
+    if (existingWOs.length > 0 && existingWOs[0].workOrderNumber) {
+      const parts = existingWOs[0].workOrderNumber.split('-');
+      if (parts.length >= 3) {
+        nextNumber = parseInt(parts[2]) + 1;
+      }
+    }
+
+    return `WO-${currentYear}-${String(nextNumber).padStart(3, '0')}`;
+  }
+
   async create(data: CreateWorkOrderDto) {
+    // Validate required fields
+    if (!data.title || data.title.trim() === '') {
+      throw new Error('Work Order Title is required.');
+    }
+
     const id = randomBytes(16).toString('hex');
+
+    // Generate work order number if not provided
+    const workOrderNumber = data.workOrderNumber || await this.generateWorkOrderNumber(data.organizationId);
 
     await this.db.execute(
       `INSERT INTO WorkOrder (
@@ -57,7 +85,7 @@ export class WorkOrdersService {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
       [
         id,
-        data.workOrderNumber,
+        workOrderNumber,
         data.title,
         data.description || null,
         data.type || 'corrective',

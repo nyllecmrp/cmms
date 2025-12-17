@@ -1,5 +1,7 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
 import { PMSchedulesService, type CreatePMScheduleDto, type UpdatePMScheduleDto } from './pm-schedules.service';
+import { PMSchedulesPurchaseService } from './pm-schedules-purchase.service';
+import { PMSchedulesSchedulerService } from './pm-schedules-scheduler.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ModuleAccessGuard, RequireModule } from '../../common/guards/module-access.guard';
 import { ModuleKey } from '../../common/constants/role-permissions.constant';
@@ -7,14 +9,35 @@ import { ModuleKey } from '../../common/constants/role-permissions.constant';
 @Controller('pm-schedules')
 @UseGuards(JwtAuthGuard, ModuleAccessGuard)
 export class PMSchedulesController {
-  constructor(private readonly pmSchedulesService: PMSchedulesService) {}
+  constructor(
+    private readonly pmSchedulesService: PMSchedulesService,
+    private readonly pmSchedulesPurchaseService: PMSchedulesPurchaseService,
+    private readonly pmSchedulesSchedulerService: PMSchedulesSchedulerService,
+  ) {}
 
   @Post()
   @RequireModule(ModuleKey.PREVENTIVE_MAINTENANCE)
   async create(@Body() createPMScheduleDto: CreatePMScheduleDto) {
     try {
       console.log('Creating PM schedule with data:', JSON.stringify(createPMScheduleDto, null, 2));
-      return await this.pmSchedulesService.create(createPMScheduleDto);
+      const pmSchedule = await this.pmSchedulesService.create(createPMScheduleDto);
+
+      // Auto-generate Purchase Request if PM has parts
+      if (pmSchedule && createPMScheduleDto.parts) {
+        console.log('PM has parts - auto-generating Purchase Request...');
+        try {
+          await this.pmSchedulesPurchaseService.createPurchaseRequestForPMSchedule(
+            pmSchedule,
+            createPMScheduleDto.createdById
+          );
+          console.log('✅ Purchase Request auto-generated successfully!');
+        } catch (prError) {
+          console.error('⚠️ Failed to auto-generate Purchase Request:', prError);
+          // Don't fail the PM creation if PR generation fails
+        }
+      }
+
+      return pmSchedule;
     } catch (error) {
       console.error('PM schedule creation error:', error);
       throw error;
@@ -69,5 +92,49 @@ export class PMSchedulesController {
   @RequireModule(ModuleKey.PREVENTIVE_MAINTENANCE)
   remove(@Param('id') id: string) {
     return this.pmSchedulesService.remove(id);
+  }
+
+  @Post(':id/generate-work-order')
+  @RequireModule(ModuleKey.PREVENTIVE_MAINTENANCE)
+  async generateWorkOrder(@Param('id') id: string, @Body('userId') userId: string) {
+    try {
+      console.log('Generating work order for PM schedule:', id);
+      const result = await this.pmSchedulesService.generateWorkOrder(id, userId);
+      console.log('Work order generated successfully');
+      return result;
+    } catch (error) {
+      console.error('Work order generation error:', error);
+      throw error;
+    }
+  }
+
+  @Post(':id/complete')
+  @RequireModule(ModuleKey.PREVENTIVE_MAINTENANCE)
+  async completePM(@Param('id') id: string) {
+    try {
+      console.log('Completing PM schedule:', id);
+      const result = await this.pmSchedulesService.completePM(id);
+      console.log('PM schedule completed and rescheduled:', result.newNextDue);
+      return result;
+    } catch (error) {
+      console.error('PM completion error:', error);
+      throw error;
+    }
+  }
+
+  @Post('auto-generate/trigger')
+  @RequireModule(ModuleKey.PREVENTIVE_MAINTENANCE)
+  async manualTriggerAutoGenerate() {
+    try {
+      console.log('Manual trigger for auto-generate work orders...');
+      await this.pmSchedulesSchedulerService.manualTrigger();
+      return {
+        success: true,
+        message: 'Auto-generation triggered successfully. Check server logs for details.',
+      };
+    } catch (error) {
+      console.error('Manual trigger error:', error);
+      throw error;
+    }
   }
 }

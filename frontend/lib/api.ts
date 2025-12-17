@@ -307,6 +307,10 @@ class ApiClient {
     });
   }
 
+  async getAssetMaintenanceHistory(assetId: string) {
+    return this.request(`/assets/${assetId}/maintenance-history`);
+  }
+
   // Work Orders APIs
   async getWorkOrders(organizationId: string) {
     return this.request(`/work-orders?organizationId=${organizationId}`);
@@ -553,8 +557,164 @@ class ApiClient {
     });
   }
 
+  async generateWorkOrderFromPMSchedule(pmScheduleId: string, userId: string) {
+    return this.request(`/pm-schedules/${pmScheduleId}/generate-work-order`, {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    });
+  }
+
+  async completePMSchedule(pmScheduleId: string) {
+    return this.request(`/pm-schedules/${pmScheduleId}/complete`, {
+      method: 'POST',
+    });
+  }
+
   async getPMScheduleStats(organizationId: string) {
     return this.request(`/pm-schedules/stats?organizationId=${organizationId}`);
+  }
+
+  // Purchase Requests APIs
+  async getPurchaseRequests(organizationId: string, status?: string) {
+    let url = `/purchase-requests?organizationId=${organizationId}`;
+    if (status) {
+      url += `&status=${status}`;
+    }
+    return this.request(url);
+  }
+
+  async getPurchaseRequest(id: string) {
+    return this.request(`/purchase-requests/${id}`);
+  }
+
+  async createPurchaseRequest(data: {
+    organizationId: string;
+    title: string;
+    description?: string;
+    priority?: string;
+    type?: string;
+    pmScheduleId?: string;
+    workOrderId?: string;
+    assetId?: string;
+    items: string;
+    estimatedCost?: number;
+    notes?: string;
+    requestedById: string;
+  }) {
+    return this.request('/purchase-requests', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updatePurchaseRequest(id: string, data: any) {
+    return this.request(`/purchase-requests/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async approvePurchaseRequest(id: string, approvedById: string) {
+    return this.request(`/purchase-requests/${id}/approve`, {
+      method: 'PATCH',
+      body: JSON.stringify({ approvedById }),
+    });
+  }
+
+  async rejectPurchaseRequest(id: string, rejectedById: string, rejectionReason: string) {
+    return this.request(`/purchase-requests/${id}/reject`, {
+      method: 'PATCH',
+      body: JSON.stringify({ rejectedById, rejectionReason }),
+    });
+  }
+
+  async markPurchaseRequestAsPurchased(id: string, actualCost?: number) {
+    return this.request(`/purchase-requests/${id}/mark-purchased`, {
+      method: 'PATCH',
+      body: JSON.stringify({ actualCost }),
+    });
+  }
+
+  async deletePurchaseRequest(id: string) {
+    return this.request(`/purchase-requests/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Purchase Orders APIs
+  async getPurchaseOrders(organizationId: string, status?: string) {
+    let url = `/purchase-orders?organizationId=${organizationId}`;
+    if (status) {
+      url += `&status=${status}`;
+    }
+    return this.request(url);
+  }
+
+  async getPurchaseOrder(id: string) {
+    return this.request(`/purchase-orders/${id}`);
+  }
+
+  async createPurchaseOrder(data: {
+    organizationId: string;
+    purchaseRequestId?: string;
+    supplierName: string;
+    supplierContact?: string;
+    supplierEmail?: string;
+    supplierAddress?: string;
+    items: string;
+    subtotal?: number;
+    tax?: number;
+    shippingCost?: number;
+    totalCost?: number;
+    orderDate?: string;
+    expectedDelivery?: string;
+    notes?: string;
+    termsAndConditions?: string;
+    paymentTerms?: string;
+    shippingMethod?: string;
+    createdById: string;
+  }) {
+    return this.request('/purchase-orders', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updatePurchaseOrder(id: string, data: any) {
+    return this.request(`/purchase-orders/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async sendPurchaseOrder(id: string, approvedById: string) {
+    return this.request(`/purchase-orders/${id}/send`, {
+      method: 'POST',
+      body: JSON.stringify({ approvedById }),
+    });
+  }
+
+  async receivePurchaseOrder(id: string, receivedById: string, actualDelivery?: string) {
+    return this.request(`/purchase-orders/${id}/receive`, {
+      method: 'POST',
+      body: JSON.stringify({ receivedById, actualDelivery }),
+    });
+  }
+
+  async cancelPurchaseOrder(id: string) {
+    return this.request(`/purchase-orders/${id}/cancel`, {
+      method: 'POST',
+    });
+  }
+
+  async deletePurchaseOrder(id: string) {
+    return this.request(`/purchase-orders/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getPurchaseRequestStats(organizationId: string) {
+    return this.request(`/purchase-requests/stats?organizationId=${organizationId}`);
   }
 }
 

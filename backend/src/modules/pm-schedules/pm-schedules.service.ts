@@ -40,6 +40,19 @@ export class PMSchedulesService {
   constructor(private db: DatabaseService) {}
 
   async create(createPMScheduleDto: CreatePMScheduleDto) {
+    // Validate required fields
+    if (!createPMScheduleDto.name || createPMScheduleDto.name.trim() === '') {
+      throw new Error('PM Schedule Name is required.');
+    }
+
+    if (!createPMScheduleDto.frequency || createPMScheduleDto.frequency.trim() === '') {
+      throw new Error('Frequency is required.');
+    }
+
+    if (!createPMScheduleDto.nextDue || createPMScheduleDto.nextDue.trim() === '') {
+      throw new Error('Next Due Date is required.');
+    }
+
     const id = randomBytes(16).toString('hex');
 
     await this.db.execute(
@@ -55,7 +68,7 @@ export class PMSchedulesService {
         createPMScheduleDto.description || null,
         createPMScheduleDto.assetId || null,
         createPMScheduleDto.frequency,
-        createPMScheduleDto.frequencyValue || null,
+        createPMScheduleDto.frequencyValue || 1,
         createPMScheduleDto.priority || 'medium',
         'active',
         createPMScheduleDto.assignedToId || null,
@@ -219,6 +232,10 @@ export class PMSchedulesService {
   }
 
   async remove(id: string) {
+    // Delete associated purchase requests first
+    await this.db.execute('DELETE FROM PurchaseRequest WHERE pmScheduleId = ?', [id]);
+
+    // Then delete the PM schedule
     await this.db.execute('DELETE FROM PMSchedule WHERE id = ?', [id]);
     return { id };
   }
@@ -267,6 +284,128 @@ export class PMSchedulesService {
     };
   }
 
+  async generateWorkOrder(pmScheduleId: string, userId: string) {
+    // Fetch PM schedule details
+    const schedules = await this.db.query(
+      `SELECT
+        pm.*,
+        a.id as asset_id, a.name as asset_name, a.assetNumber as asset_assetNumber,
+        assigned.id as assignedTo_id, assigned.firstName as assignedTo_firstName,
+        assigned.lastName as assignedTo_lastName, assigned.email as assignedTo_email
+      FROM PMSchedule pm
+      LEFT JOIN Asset a ON pm.assetId = a.id
+      LEFT JOIN User assigned ON pm.assignedToId = assigned.id
+      WHERE pm.id = ?`,
+      [pmScheduleId]
+    );
+
+    if (!schedules || schedules.length === 0) {
+      throw new Error('PM Schedule not found');
+    }
+
+    const pmSchedule = schedules[0];
+
+    // DUPLICATE PREVENTION: Check if a WO already exists for this PM's current cycle
+    // A cycle is defined by the nextDue date - only one WO should exist per due date
+    const existingWO = await this.db.query(
+      `SELECT wo.id, wo.workOrderNumber, wo.status
+       FROM WorkOrder wo
+       WHERE wo.notes LIKE ?
+         AND wo.scheduledStart = ?
+         AND wo.organizationId = ?
+       ORDER BY wo.createdAt DESC
+       LIMIT 1`,
+      [
+        `%Generated from PM Schedule: ${pmSchedule.name}%`,
+        pmSchedule.nextDue || new Date().toISOString().split('T')[0],
+        pmSchedule.organizationId
+      ]
+    );
+
+    if (existingWO && existingWO.length > 0) {
+      const existing = existingWO[0];
+      throw new Error(
+        `Work Order already exists for this PM cycle. ` +
+        `WO Number: ${existing.workOrderNumber}, Status: ${existing.status}. ` +
+        `Please complete or delete the existing work order before generating a new one.`
+      );
+    }
+
+    // Generate unique work order number with format WO-YEAR-NUMBER
+    const currentYear = new Date().getFullYear();
+    const existingWOs = await this.db.query(
+      `SELECT workOrderNumber FROM WorkOrder
+       WHERE organizationId = ? AND workOrderNumber LIKE ?
+       ORDER BY workOrderNumber DESC LIMIT 1`,
+      [pmSchedule.organizationId, `WO-${currentYear}-%`]
+    );
+
+    let nextNumber = 1;
+    if (existingWOs.length > 0 && existingWOs[0].workOrderNumber) {
+      const parts = existingWOs[0].workOrderNumber.split('-');
+      if (parts.length >= 3) {
+        nextNumber = parseInt(parts[2]) + 1;
+      }
+    }
+
+    const woNumber = `WO-${currentYear}-${String(nextNumber).padStart(3, '0')}`;
+
+    // Create work order from PM schedule
+    const workOrderId = randomBytes(16).toString('hex');
+    const now = new Date();
+    const scheduledStart = pmSchedule.nextDue || now.toISOString().split('T')[0];
+
+    await this.db.execute(
+      `INSERT INTO WorkOrder (
+        id, workOrderNumber, title, description, type, priority, status,
+        assetId, assignedToId, scheduledStart, estimatedHours,
+        notes, organizationId, createdById, createdAt, updatedAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+      [
+        workOrderId,
+        woNumber,
+        pmSchedule.name,
+        pmSchedule.description || `Preventive maintenance task: ${pmSchedule.name}`,
+        'preventive',
+        pmSchedule.priority || 'medium',
+        'open',
+        pmSchedule.assetId || null,
+        pmSchedule.assignedToId || null,
+        scheduledStart,
+        pmSchedule.estimatedHours || null,
+        `Generated from PM Schedule: ${pmSchedule.name}`,
+        pmSchedule.organizationId,
+        userId,
+      ]
+    );
+
+    // Update PM schedule lastCompleted date
+    await this.db.execute(
+      `UPDATE PMSchedule SET lastCompleted = datetime('now'), updatedAt = datetime('now') WHERE id = ?`,
+      [pmScheduleId]
+    );
+
+    // Fetch created work order
+    const workOrders = await this.db.query(
+      `SELECT
+        wo.*,
+        a.name as asset_name,
+        assigned.firstName as assignedTo_firstName,
+        assigned.lastName as assignedTo_lastName
+      FROM WorkOrder wo
+      LEFT JOIN Asset a ON wo.assetId = a.id
+      LEFT JOIN User assigned ON wo.assignedToId = assigned.id
+      WHERE wo.id = ?`,
+      [workOrderId]
+    );
+
+    return {
+      success: true,
+      workOrder: workOrders[0],
+      workOrderNumber: woNumber,
+    };
+  }
+
   async updateStatus(id: string, status: string) {
     await this.db.execute(
       `UPDATE PMSchedule SET status = ?, updatedAt = datetime('now') WHERE id = ?`,
@@ -291,6 +430,95 @@ export class PMSchedulesService {
     );
 
     return this.formatPMScheduleWithRelations(schedules[0]);
+  }
+
+  private calculateNextDueDate(frequency: string, frequencyValue: number = 1, fromDate?: Date): string {
+    const baseDate = fromDate || new Date();
+    const nextDue = new Date(baseDate);
+
+    switch (frequency) {
+      case 'Daily':
+        nextDue.setDate(nextDue.getDate() + (frequencyValue || 1));
+        break;
+      case 'Weekly':
+        nextDue.setDate(nextDue.getDate() + (7 * (frequencyValue || 1)));
+        break;
+      case 'Monthly':
+        nextDue.setMonth(nextDue.getMonth() + (frequencyValue || 1));
+        break;
+      case 'Quarterly':
+        nextDue.setMonth(nextDue.getMonth() + (3 * (frequencyValue || 1)));
+        break;
+      case 'Semi-Annually':
+        nextDue.setMonth(nextDue.getMonth() + (6 * (frequencyValue || 1)));
+        break;
+      case 'Annually':
+        nextDue.setFullYear(nextDue.getFullYear() + (frequencyValue || 1));
+        break;
+      case 'Custom':
+        // For custom frequencies, frequencyValue represents days
+        nextDue.setDate(nextDue.getDate() + (frequencyValue || 1));
+        break;
+      default:
+        // Default to monthly if unknown
+        nextDue.setMonth(nextDue.getMonth() + 1);
+    }
+
+    return nextDue.toISOString().split('T')[0];
+  }
+
+  async completePM(id: string) {
+    // Fetch current PM schedule
+    const schedules = await this.db.query(
+      `SELECT * FROM PMSchedule WHERE id = ?`,
+      [id]
+    );
+
+    if (!schedules || schedules.length === 0) {
+      throw new Error('PM Schedule not found');
+    }
+
+    const pmSchedule = schedules[0];
+    const now = new Date();
+    const nextDue = this.calculateNextDueDate(
+      pmSchedule.frequency,
+      pmSchedule.frequencyValue,
+      now
+    );
+
+    // Update PM schedule with completion date and new next due date
+    await this.db.execute(
+      `UPDATE PMSchedule
+       SET lastCompleted = datetime('now'),
+           nextDue = ?,
+           updatedAt = datetime('now')
+       WHERE id = ?`,
+      [nextDue, id]
+    );
+
+    // Fetch the updated PM schedule with relations
+    const updatedSchedules = await this.db.query(
+      `SELECT
+        pm.*,
+        a.id as asset_id, a.name as asset_name, a.assetNumber as asset_assetNumber,
+        assigned.id as assignedTo_id, assigned.firstName as assignedTo_firstName,
+        assigned.lastName as assignedTo_lastName, assigned.email as assignedTo_email,
+        creator.id as createdBy_id, creator.firstName as createdBy_firstName,
+        creator.lastName as createdBy_lastName
+      FROM PMSchedule pm
+      LEFT JOIN Asset a ON pm.assetId = a.id
+      LEFT JOIN User assigned ON pm.assignedToId = assigned.id
+      LEFT JOIN User creator ON pm.createdById = creator.id
+      WHERE pm.id = ?`,
+      [id]
+    );
+
+    return {
+      success: true,
+      pmSchedule: this.formatPMScheduleWithRelations(updatedSchedules[0]),
+      oldNextDue: pmSchedule.nextDue,
+      newNextDue: nextDue,
+    };
   }
 
   private formatPMScheduleWithRelations(row: any) {

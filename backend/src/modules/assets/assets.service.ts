@@ -19,6 +19,7 @@ export interface CreateAssetDto {
   parentAssetId?: string;
   imageUrl?: string;
   customFields?: string;
+  maintenanceParts?: string;
   organizationId: string;
   createdById: string;
 }
@@ -40,6 +41,7 @@ export interface UpdateAssetDto {
   parentAssetId?: string;
   imageUrl?: string;
   customFields?: string;
+  maintenanceParts?: string;
 }
 
 @Injectable()
@@ -47,6 +49,25 @@ export class AssetsService {
   constructor(private db: DatabaseService) {}
 
   async create(data: CreateAssetDto) {
+    // Validate required fields
+    if (!data.assetNumber || data.assetNumber.trim() === '') {
+      throw new Error('Asset Number is required.');
+    }
+
+    if (!data.name || data.name.trim() === '') {
+      throw new Error('Asset Name is required.');
+    }
+
+    // Validate assetNumber uniqueness within organization
+    const existingAsset = await this.db.query(
+      'SELECT id, assetNumber FROM Asset WHERE assetNumber = ? AND organizationId = ?',
+      [data.assetNumber, data.organizationId]
+    );
+
+    if (existingAsset && existingAsset.length > 0) {
+      throw new Error(`Asset Number '${data.assetNumber}' already exists in your organization. Please use a unique asset number.`);
+    }
+
     const id = randomBytes(16).toString('hex');
 
     await this.db.execute(
@@ -54,8 +75,8 @@ export class AssetsService {
         id, assetNumber, name, description, category, manufacturer, model,
         serialNumber, purchaseDate, purchaseCost, warrantyExpiresAt, status,
         criticality, locationId, parentAssetId, imageUrl, customFields,
-        organizationId, createdById, createdAt, updatedAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+        maintenanceParts, organizationId, createdById, createdAt, updatedAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
       [
         id,
         data.assetNumber,
@@ -74,6 +95,7 @@ export class AssetsService {
         data.parentAssetId || null,
         data.imageUrl || null,
         data.customFields || null,
+        data.maintenanceParts || null,
         data.organizationId,
         data.createdById,
       ]
@@ -216,6 +238,10 @@ export class AssetsService {
       updates.push('customFields = ?');
       values.push(data.customFields);
     }
+    if (data.maintenanceParts !== undefined) {
+      updates.push('maintenanceParts = ?');
+      values.push(data.maintenanceParts);
+    }
 
     updates.push('updatedAt = datetime(\'now\')');
     values.push(id);
@@ -262,6 +288,235 @@ export class AssetsService {
     }, {} as Record<string, number>);
   }
 
+  async getMaintenanceHistory(assetId: string) {
+    // Fetch asset details
+    const assets = await this.db.query(
+      `SELECT a.*, l.name as location_name
+       FROM Asset a
+       LEFT JOIN Location l ON a.locationId = l.id
+       WHERE a.id = ?`,
+      [assetId]
+    );
+
+    if (!assets || assets.length === 0) {
+      throw new Error('Asset not found');
+    }
+
+    const asset = assets[0];
+
+    // Fetch all work orders for this asset
+    const workOrders = await this.db.query(
+      `SELECT
+        wo.*,
+        assigned.firstName as assignedTo_firstName,
+        assigned.lastName as assignedTo_lastName,
+        creator.firstName as createdBy_firstName,
+        creator.lastName as createdBy_lastName
+       FROM WorkOrder wo
+       LEFT JOIN User assigned ON wo.assignedToId = assigned.id
+       LEFT JOIN User creator ON wo.createdById = creator.id
+       WHERE wo.assetId = ?
+       ORDER BY wo.createdAt DESC`,
+      [assetId]
+    );
+
+    // Fetch all PM schedules for this asset
+    const pmSchedules = await this.db.query(
+      `SELECT
+        pm.*,
+        assigned.firstName as assignedTo_firstName,
+        assigned.lastName as assignedTo_lastName
+       FROM PMSchedule pm
+       LEFT JOIN User assigned ON pm.assignedToId = assigned.id
+       WHERE pm.assetId = ?
+       ORDER BY pm.createdAt DESC`,
+      [assetId]
+    );
+
+    // Calculate maintenance statistics
+    const completedWorkOrders = workOrders.filter((wo: any) => wo.status === 'completed');
+    const totalMaintenanceCost = completedWorkOrders.reduce((sum: number, wo: any) => {
+      return sum + (wo.actualCost || 0);
+    }, 0);
+
+    const totalMaintenanceHours = completedWorkOrders.reduce((sum: number, wo: any) => {
+      return sum + (wo.actualHours || 0);
+    }, 0);
+
+    // Calculate downtime (completed WOs with actual hours)
+    const totalDowntimeHours = workOrders
+      .filter((wo: any) => wo.type === 'corrective' && wo.status === 'completed')
+      .reduce((sum: number, wo: any) => sum + (wo.actualHours || 0), 0);
+
+    // Get maintenance timeline (work orders + PM completions combined)
+    const timeline: any[] = [];
+
+    // Add work orders to timeline
+    workOrders.forEach((wo: any) => {
+      timeline.push({
+        id: wo.id,
+        type: 'work_order',
+        date: wo.completedAt || wo.createdAt,
+        title: wo.title,
+        description: wo.description,
+        status: wo.status,
+        workOrderNumber: wo.workOrderNumber,
+        workOrderType: wo.type,
+        priority: wo.priority,
+        assignedTo: wo.assignedTo_firstName
+          ? `${wo.assignedTo_firstName} ${wo.assignedTo_lastName}`
+          : 'Unassigned',
+        cost: wo.actualCost || 0,
+        hours: wo.actualHours || 0,
+        notes: wo.notes,
+      });
+    });
+
+    // Add PM completions to timeline
+    pmSchedules.forEach((pm: any) => {
+      if (pm.lastCompleted) {
+        let parsedParts = null;
+        if (pm.parts) {
+          try {
+            parsedParts = JSON.parse(pm.parts);
+          } catch (e) {
+            console.error('Failed to parse PM parts:', e);
+          }
+        }
+
+        timeline.push({
+          id: pm.id,
+          type: 'pm_completion',
+          date: pm.lastCompleted,
+          title: pm.name,
+          description: pm.description,
+          status: 'completed',
+          frequency: pm.frequency,
+          assignedTo: pm.assignedTo_firstName
+            ? `${pm.assignedTo_firstName} ${pm.assignedTo_lastName}`
+            : 'Unassigned',
+          estimatedHours: pm.estimatedHours || 0,
+          parts: parsedParts,
+        });
+      }
+    });
+
+    // Sort timeline by date (most recent first)
+    timeline.sort((a, b) => {
+      const dateA = new Date(a.date || 0).getTime();
+      const dateB = new Date(b.date || 0).getTime();
+      return dateB - dateA;
+    });
+
+    // Calculate MTBF (Mean Time Between Failures) - time between corrective work orders
+    const correctiveWorkOrders = workOrders
+      .filter((wo: any) => wo.type === 'corrective' && wo.completedAt)
+      .sort((a: any, b: any) => new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime());
+
+    let mtbf: number | null = null;
+    if (correctiveWorkOrders.length >= 2) {
+      const intervals: number[] = [];
+      for (let i = 1; i < correctiveWorkOrders.length; i++) {
+        const prevDate = new Date(correctiveWorkOrders[i - 1].completedAt).getTime();
+        const currDate = new Date(correctiveWorkOrders[i].completedAt).getTime();
+        intervals.push((currDate - prevDate) / (1000 * 60 * 60 * 24)); // Convert to days
+      }
+      mtbf = intervals.reduce((sum, val) => sum + val, 0) / intervals.length;
+    }
+
+    // Calculate MTTR (Mean Time To Repair) - average time to complete corrective work orders
+    let mttr: number | null = null;
+    if (correctiveWorkOrders.length > 0) {
+      const totalRepairHours = correctiveWorkOrders.reduce(
+        (sum: number, wo: any) => sum + (wo.actualHours || 0),
+        0
+      );
+      mttr = totalRepairHours / correctiveWorkOrders.length;
+    }
+
+    return {
+      asset: {
+        id: asset.id,
+        assetNumber: asset.assetNumber,
+        name: asset.name,
+        description: asset.description,
+        category: asset.category,
+        manufacturer: asset.manufacturer,
+        model: asset.model,
+        serialNumber: asset.serialNumber,
+        status: asset.status,
+        criticality: asset.criticality,
+        location: asset.location_name,
+        purchaseDate: asset.purchaseDate,
+        purchaseCost: asset.purchaseCost,
+      },
+      statistics: {
+        totalWorkOrders: workOrders.length,
+        completedWorkOrders: completedWorkOrders.length,
+        openWorkOrders: workOrders.filter((wo: any) => wo.status === 'open' || wo.status === 'in_progress').length,
+        preventiveWorkOrders: workOrders.filter((wo: any) => wo.type === 'preventive').length,
+        correctiveWorkOrders: workOrders.filter((wo: any) => wo.type === 'corrective').length,
+        totalPMSchedules: pmSchedules.length,
+        activePMSchedules: pmSchedules.filter((pm: any) => pm.status === 'active').length,
+        totalMaintenanceCost,
+        totalMaintenanceHours,
+        totalDowntimeHours,
+        mtbf: mtbf ? Math.round(mtbf * 10) / 10 : null, // Round to 1 decimal
+        mttr: mttr ? Math.round(mttr * 10) / 10 : null,
+      },
+      workOrders: workOrders.map((wo: any) => ({
+        id: wo.id,
+        workOrderNumber: wo.workOrderNumber,
+        title: wo.title,
+        description: wo.description,
+        type: wo.type,
+        priority: wo.priority,
+        status: wo.status,
+        assignedTo: wo.assignedTo_firstName
+          ? `${wo.assignedTo_firstName} ${wo.assignedTo_lastName}`
+          : 'Unassigned',
+        createdBy: wo.createdBy_firstName
+          ? `${wo.createdBy_firstName} ${wo.createdBy_lastName}`
+          : 'Unknown',
+        createdAt: wo.createdAt,
+        completedAt: wo.completedAt,
+        scheduledStart: wo.scheduledStart,
+        actualHours: wo.actualHours || 0,
+        estimatedHours: wo.estimatedHours || 0,
+        actualCost: wo.actualCost || 0,
+        notes: wo.notes,
+      })),
+      pmSchedules: pmSchedules.map((pm: any) => {
+        let parsedParts = null;
+        if (pm.parts) {
+          try {
+            parsedParts = JSON.parse(pm.parts);
+          } catch (e) {
+            console.error('Failed to parse PM parts:', e);
+          }
+        }
+
+        return {
+          id: pm.id,
+          name: pm.name,
+          description: pm.description,
+          frequency: pm.frequency,
+          status: pm.status,
+          priority: pm.priority,
+          assignedTo: pm.assignedTo_firstName
+            ? `${pm.assignedTo_firstName} ${pm.assignedTo_lastName}`
+            : 'Unassigned',
+          lastCompleted: pm.lastCompleted,
+          nextDue: pm.nextDue,
+          estimatedHours: pm.estimatedHours || 0,
+          parts: parsedParts,
+          createdAt: pm.createdAt,
+        };
+      }),
+      timeline,
+    };
+  }
+
   private formatAssetWithRelations(row: any) {
     if (!row) return null;
 
@@ -283,6 +538,7 @@ export class AssetsService {
       parentAssetId: row.parentAssetId,
       imageUrl: row.imageUrl,
       customFields: row.customFields,
+      maintenanceParts: row.maintenanceParts,
       organizationId: row.organizationId,
       createdById: row.createdById,
       createdAt: row.createdAt,

@@ -25,6 +25,16 @@ export class UsersService {
     roleId: string;
     organizationId: string;
   }) {
+    // Validate email uniqueness
+    const existingUser = await this.db.query(
+      'SELECT id, email FROM User WHERE email = ?',
+      [data.email]
+    );
+
+    if (existingUser && existingUser.length > 0) {
+      throw new Error(`Email '${data.email}' is already registered. Please use a different email address.`);
+    }
+
     const hashedPassword = await bcrypt.hash(data.password, 10);
     const userId = randomBytes(16).toString('hex');
 
@@ -53,6 +63,16 @@ export class UsersService {
     organizationId: string;
     invitedBy: string;
   }) {
+    // Validate email uniqueness
+    const existingUser = await this.db.query(
+      'SELECT id, email FROM User WHERE email = ?',
+      [data.email]
+    );
+
+    if (existingUser && existingUser.length > 0) {
+      throw new Error(`Email '${data.email}' is already registered. Please use a different email address.`);
+    }
+
     // Generate temporary password
     const tempPassword = Math.random().toString(36).slice(-8);
     const hashedPassword = await bcrypt.hash(tempPassword, 10);

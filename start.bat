@@ -6,8 +6,8 @@ echo.
 
 REM Start backend in new window
 echo Starting Backend Server...
-start "CMMS Backend" cmd /k "cd backend && npm run start:dev"
-timeout /t 3 /nobreak > nul
+start "CMMS Backend" cmd /k "cd backend && npm start"
+timeout /t 5 /nobreak > nul
 
 REM Start frontend in new window
 echo Starting Frontend Server...
@@ -18,14 +18,14 @@ echo ====================================
 echo    Servers Starting...
 echo ====================================
 echo.
-echo Backend:  http://localhost:3000/api
-echo Frontend: http://localhost:3002
+echo Backend:  http://localhost:3001/api
+echo Frontend: http://localhost:3000
 echo.
-echo Opening browser in 5 seconds...
-timeout /t 5 /nobreak > nul
+echo Opening browser in 10 seconds...
+timeout /t 10 /nobreak > nul
 
 REM Open browser
-start http://localhost:3002
+start http://localhost:3000
 
 echo.
 echo ====================================

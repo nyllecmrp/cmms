@@ -27,7 +27,11 @@ export default function AssetsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
-  
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [maintenanceHistory, setMaintenanceHistory] = useState<any>(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [expandedTimelineItems, setExpandedTimelineItems] = useState<Set<string>>(new Set());
+
   const canCreate = canPerformAction(user?.roleId || null, 'create');
   const canEdit = canPerformAction(user?.roleId || null, 'edit');
   const canDelete = canPerformAction(user?.roleId || null, 'delete');
@@ -96,6 +100,20 @@ export default function AssetsPage() {
   const handleEditAsset = (asset: Asset) => {
     setSelectedAsset(asset);
     setIsFormOpen(true);
+  };
+
+  const handleViewHistory = async (asset: Asset) => {
+    setLoadingHistory(true);
+    setShowHistoryModal(true);
+    try {
+      const history = await api.getAssetMaintenanceHistory(asset.id);
+      setMaintenanceHistory(history);
+    } catch (error: any) {
+      alert(`Failed to load maintenance history: ${error.message}`);
+      setShowHistoryModal(false);
+    } finally {
+      setLoadingHistory(false);
+    }
   };
 
   const handleDeleteAsset = async (assetId: string) => {
@@ -240,6 +258,13 @@ export default function AssetsPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <button
+                        onClick={() => handleViewHistory(asset)}
+                        className="text-blue-600 hover:text-blue-800 mr-3 font-medium"
+                        title="View Maintenance History"
+                      >
+                        📊 History
+                      </button>
                       {canEdit && (
                         <button
                           onClick={() => handleEditAsset(asset)}
@@ -300,6 +325,272 @@ export default function AssetsPage() {
           onSuccess={handleFormSuccess}
           asset={selectedAsset}
         />
+
+        {/* Maintenance History Modal */}
+        {showHistoryModal && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+              <div
+                className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
+                onClick={() => setShowHistoryModal(false)}
+              ></div>
+
+              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full">
+                <div className="bg-white px-6 pt-5 pb-4">
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-6 border-b pb-4">
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">Maintenance History</h2>
+                      {maintenanceHistory && (
+                        <p className="text-sm text-gray-600 mt-1">
+                          {maintenanceHistory.asset.name} ({maintenanceHistory.asset.assetNumber})
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex gap-3">
+                      <Link
+                        href={`/dashboard/assets/${maintenanceHistory?.asset.id}/history`}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
+                      >
+                        View Full Report
+                      </Link>
+                      <button
+                        onClick={() => setShowHistoryModal(false)}
+                        className="text-gray-400 hover:text-gray-500"
+                      >
+                        <span className="text-2xl">&times;</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {loadingHistory ? (
+                    <div className="py-12 text-center">
+                      <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                      <p className="mt-4 text-gray-600">Loading maintenance history...</p>
+                    </div>
+                  ) : maintenanceHistory ? (
+                    <div className="space-y-6">
+                      {/* Asset Info */}
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div>
+                            <p className="text-xs text-gray-500">Manufacturer</p>
+                            <p className="text-sm font-medium text-gray-900">{maintenanceHistory.asset.manufacturer || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Model</p>
+                            <p className="text-sm font-medium text-gray-900">{maintenanceHistory.asset.model || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Serial Number</p>
+                            <p className="text-sm font-medium text-gray-900">{maintenanceHistory.asset.serialNumber || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Status</p>
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(maintenanceHistory.asset.status)}`}>
+                              {maintenanceHistory.asset.status}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Statistics Grid */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-white border border-gray-200 rounded-lg p-4">
+                          <p className="text-xs text-gray-500">Total Work Orders</p>
+                          <p className="text-2xl font-bold text-gray-900">{maintenanceHistory.statistics.totalWorkOrders}</p>
+                          <p className="text-xs text-green-600 mt-1">{maintenanceHistory.statistics.completedWorkOrders} completed</p>
+                        </div>
+                        <div className="bg-white border border-gray-200 rounded-lg p-4">
+                          <p className="text-xs text-gray-500">Maintenance Cost</p>
+                          <p className="text-2xl font-bold text-gray-900">₱{maintenanceHistory.statistics.totalMaintenanceCost.toLocaleString()}</p>
+                          <p className="text-xs text-gray-500 mt-1">{maintenanceHistory.statistics.totalMaintenanceHours}h total</p>
+                        </div>
+                        <div className="bg-white border border-gray-200 rounded-lg p-4">
+                          <p className="text-xs text-gray-500">MTBF (Days)</p>
+                          <p className="text-2xl font-bold text-blue-600">{maintenanceHistory.statistics.mtbf || 'N/A'}</p>
+                          <p className="text-xs text-gray-500 mt-1">Between failures</p>
+                        </div>
+                        <div className="bg-white border border-gray-200 rounded-lg p-4">
+                          <p className="text-xs text-gray-500">MTTR (Hours)</p>
+                          <p className="text-2xl font-bold text-orange-600">{maintenanceHistory.statistics.mttr || 'N/A'}</p>
+                          <p className="text-xs text-gray-500 mt-1">Avg repair time</p>
+                        </div>
+                      </div>
+
+                      {/* Timeline Preview */}
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Recent Activity</h3>
+                        <div className="space-y-3 max-h-96 overflow-y-auto">
+                          {maintenanceHistory.timeline.slice(0, 10).map((event: any, index: number) => {
+                            const eventKey = `${event.type}-${event.id}-${index}`;
+                            const isExpanded = expandedTimelineItems.has(eventKey);
+
+                            return (
+                              <div key={eventKey} className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition">
+                                {/* Collapsed Header - Always Visible */}
+                                <div
+                                  onClick={() => {
+                                    const newSet = new Set(expandedTimelineItems);
+                                    if (isExpanded) {
+                                      newSet.delete(eventKey);
+                                    } else {
+                                      newSet.add(eventKey);
+                                    }
+                                    setExpandedTimelineItems(newSet);
+                                  }}
+                                  className="flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-50"
+                                >
+                                  <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white ${
+                                    event.type === 'work_order' ? 'bg-blue-500' : 'bg-green-500'
+                                  }`}>
+                                    {event.type === 'work_order' ? '🔧' : '✓'}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between">
+                                      <p className="text-sm font-semibold text-gray-900">{event.title}</p>
+                                      <div className="flex items-center gap-2">
+                                        <p className="text-xs text-gray-500">{new Date(event.date).toLocaleDateString()}</p>
+                                        <span className="text-gray-400">
+                                          {isExpanded ? '▼' : '▶'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-3 mt-1">
+                                      {event.workOrderNumber && (
+                                        <span className="text-xs text-blue-600 font-medium">{event.workOrderNumber}</span>
+                                      )}
+                                      {event.workOrderType && (
+                                        <span className={`text-xs px-2 py-0.5 rounded ${
+                                          event.workOrderType === 'preventive' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                        }`}>
+                                          {event.workOrderType}
+                                        </span>
+                                      )}
+                                      <span className={`text-xs px-2 py-0.5 rounded ${
+                                        event.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                        event.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                                        'bg-gray-100 text-gray-700'
+                                      }`}>
+                                        {event.status}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Expanded Details - Shows on Click */}
+                                {isExpanded && (
+                                  <div className="border-t border-gray-200 bg-gray-50 p-4 space-y-3">
+                                    {/* Basic Info Grid */}
+                                    <div className="grid grid-cols-2 gap-3 text-sm">
+                                      <div>
+                                        <span className="text-gray-500">Assigned To:</span>
+                                        <span className="ml-2 font-medium text-gray-900">{event.assignedTo}</span>
+                                      </div>
+                                      {event.cost > 0 && (
+                                        <div>
+                                          <span className="text-gray-500">Cost:</span>
+                                          <span className="ml-2 font-medium text-gray-900">₱{event.cost.toLocaleString()}</span>
+                                        </div>
+                                      )}
+                                      {event.hours > 0 && (
+                                        <div>
+                                          <span className="text-gray-500">Hours:</span>
+                                          <span className="ml-2 font-medium text-gray-900">{event.hours}h</span>
+                                        </div>
+                                      )}
+                                      {event.frequency && (
+                                        <div>
+                                          <span className="text-gray-500">Frequency:</span>
+                                          <span className="ml-2 font-medium text-gray-900">{event.frequency}</span>
+                                        </div>
+                                      )}
+                                      {event.priority && (
+                                        <div>
+                                          <span className="text-gray-500">Priority:</span>
+                                          <span className={`ml-2 font-medium ${
+                                            event.priority === 'high' ? 'text-red-600' :
+                                            event.priority === 'medium' ? 'text-yellow-600' :
+                                            'text-green-600'
+                                          }`}>
+                                            {event.priority}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Description */}
+                                    {event.description && (
+                                      <div>
+                                        <p className="text-xs text-gray-500 mb-1">Description:</p>
+                                        <p className="text-sm text-gray-700">{event.description}</p>
+                                      </div>
+                                    )}
+
+                                    {/* Notes */}
+                                    {event.notes && (
+                                      <div>
+                                        <p className="text-xs text-gray-500 mb-1">Notes:</p>
+                                        <p className="text-sm text-gray-700 italic">{event.notes}</p>
+                                      </div>
+                                    )}
+
+                                    {/* Parts */}
+                                    {event.parts && event.parts.length > 0 && (
+                                      <div>
+                                        <p className="text-xs text-gray-500 mb-2">Parts Used/Required:</p>
+                                        <div className="space-y-2">
+                                          {event.parts.map((part: any, partIdx: number) => (
+                                            <div key={partIdx} className="flex items-center justify-between bg-white border border-blue-100 rounded px-3 py-2">
+                                              <div>
+                                                <span className="text-sm font-medium text-gray-900">{part.name}</span>
+                                                <span className="text-xs text-gray-500 ml-2">Qty: {part.quantity}</span>
+                                              </div>
+                                              <span className="text-sm font-semibold text-blue-700">
+                                                ₱{(part.estimatedCost || part.price || 0).toLocaleString()}
+                                              </span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {maintenanceHistory.timeline.length > 10 && (
+                            <div className="text-center py-3">
+                              <Link
+                                href={`/dashboard/assets/${maintenanceHistory.asset.id}/history`}
+                                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                              >
+                                View all {maintenanceHistory.timeline.length} events →
+                              </Link>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-12 text-center text-gray-500">
+                      No maintenance history available
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-gray-50 px-6 py-3 flex justify-end">
+                  <button
+                    onClick={() => setShowHistoryModal(false)}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </RoleGuard>
   );

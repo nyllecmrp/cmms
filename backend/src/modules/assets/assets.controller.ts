@@ -28,6 +28,12 @@ export class AssetsController {
     return this.assetsService.getStatsByCategory(organizationId);
   }
 
+  @Get(':id/maintenance-history')
+  @RequireModule(ModuleKey.ASSETS)
+  getMaintenanceHistory(@Param('id') id: string) {
+    return this.assetsService.getMaintenanceHistory(id);
+  }
+
   @Get(':id')
   @RequireModule(ModuleKey.ASSETS)
   findOne(@Param('id') id: string) {
