@@ -41,6 +41,8 @@ export default function SuperadminPage() {
     maxUsers: 10,
   });
   const [saveLoading, setSaveLoading] = useState(false);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [expiringLicensesCount, setExpiringLicensesCount] = useState(0);
 
   // Redirect non-superadmin users to regular dashboard
   useEffect(() => {
@@ -65,6 +67,23 @@ export default function SuperadminPage() {
     };
 
     fetchOrganizations();
+  }, []);
+
+  useEffect(() => {
+    // Fetch pending requests count
+    const fetchCounts = async () => {
+      try {
+        const requests: any = await api.getPendingModuleRequests();
+        setPendingRequestsCount(requests.length || 0);
+
+        const expiring: any = await api.getExpiringLicenses();
+        setExpiringLicensesCount(expiring.length || 0);
+      } catch (err) {
+        console.error('Failed to fetch counts:', err);
+      }
+    };
+
+    fetchCounts();
   }, []);
 
   const getTierColor = (tier: string) => {
@@ -355,7 +374,12 @@ export default function SuperadminPage() {
 
         {/* Quick Actions */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-lg shadow p-6 relative">
+            {pendingRequestsCount > 0 && (
+              <div className="absolute top-4 right-4 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
+                {pendingRequestsCount}
+              </div>
+            )}
             <div className="text-3xl mb-3">📦</div>
             <h3 className="font-semibold text-gray-900 mb-2">Module Requests</h3>
             <p className="text-sm text-gray-600 mb-4">Review pending module requests</p>
@@ -377,7 +401,12 @@ export default function SuperadminPage() {
               View Analytics →
             </button>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-lg shadow p-6 relative">
+            {expiringLicensesCount > 0 && (
+              <div className="absolute top-4 right-4 bg-orange-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
+                {expiringLicensesCount}
+              </div>
+            )}
             <div className="text-3xl mb-3">🔔</div>
             <h3 className="font-semibold text-gray-900 mb-2">Expiring Licenses</h3>
             <p className="text-sm text-gray-600 mb-4">Modules expiring in next 30 days</p>

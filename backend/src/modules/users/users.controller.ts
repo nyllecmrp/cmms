@@ -12,11 +12,11 @@ import {
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { ModuleAccessGuard, RequireModule } from '../../common/guards/module-access.guard';
+import { SimpleModuleAccessGuard, RequireModule } from '../../common/guards/simple-module-access.guard';
 import { ModuleKey } from '../../common/constants/role-permissions.constant';
 
 @Controller('users')
-@UseGuards(JwtAuthGuard, ModuleAccessGuard)
+@UseGuards(JwtAuthGuard, SimpleModuleAccessGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 

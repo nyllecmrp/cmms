@@ -135,13 +135,17 @@ export class ModuleLicensingService {
       throw new BadRequestException(`Invalid module code: ${moduleCode}`);
     }
     if (moduleDef.dependencies) {
+      const missingDeps = [];
       for (const depCode of moduleDef.dependencies) {
         const hasAccess = await this.hasModuleAccess(organizationId, depCode as ModuleCode);
         if (!hasAccess) {
-          throw new BadRequestException(
-            `Module ${moduleCode} requires ${depCode} to be activated first`,
-          );
+          missingDeps.push(MODULE_DEFINITIONS[depCode as ModuleCode].name);
         }
+      }
+      if (missingDeps.length > 0) {
+        throw new BadRequestException(
+          `Cannot activate ${moduleDef.name}. Missing required modules: ${missingDeps.join(', ')}. Please activate these modules first.`,
+        );
       }
     }
 
@@ -398,7 +402,7 @@ export class ModuleLicensingService {
     );
 
     if (existing.length > 0) {
-      // Update existing record
+      // Update existing record - increment apiCalls
       const updates: string[] = [];
       const values: any[] = [];
 
@@ -407,11 +411,11 @@ export class ModuleLicensingService {
         values.push(metrics.activeUsers);
       }
       if (metrics.transactions !== undefined) {
-        updates.push('transactions = ?');
+        updates.push('transactions = transactions + ?');
         values.push(metrics.transactions);
       }
       if (metrics.apiCalls !== undefined) {
-        updates.push('apiCalls = ?');
+        updates.push('apiCalls = COALESCE(apiCalls, 0) + ?');
         values.push(metrics.apiCalls);
       }
       if (metrics.storageUsed !== undefined) {
@@ -458,5 +462,87 @@ export class ModuleLicensingService {
       );
       return created[0];
     }
+  }
+
+  /**
+   * Log module access attempt
+   */
+  async logModuleAccess(
+    organizationId: string,
+    userId: string,
+    moduleCode: string,
+    action: 'accessed' | 'denied' | 'activated' | 'deactivated',
+    ipAddress?: string,
+  ) {
+    const logId = randomBytes(16).toString('hex');
+    await this.db.execute(
+      `INSERT INTO ModuleAccessLog (
+        id, organizationId, userId, moduleCode, action, ipAddress
+      ) VALUES (?, ?, ?, ?, ?, ?)`,
+      [logId, organizationId, userId, moduleCode, action, ipAddress || null]
+    );
+  }
+
+  /**
+   * Get modules expiring soon (for notifications)
+   */
+  async getExpiringModules(days: number = 30) {
+    const now = new Date();
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + days);
+
+    const modules = await this.db.query(
+      `SELECT ml.*, o.name as organizationName
+      FROM ModuleLicense ml
+      JOIN Organization o ON ml.organizationId = o.id
+      WHERE ml.status = ?
+      AND ml.expiresAt IS NOT NULL
+      AND ml.expiresAt BETWEEN ? AND ?
+      ORDER BY ml.expiresAt ASC`,
+      [ModuleStatus.ACTIVE, now.toISOString(), futureDate.toISOString()]
+    );
+
+    return modules;
+  }
+
+  /**
+   * Get modules in grace period
+   */
+  async getModulesInGracePeriod() {
+    const now = new Date();
+    const gracePeriodStart = new Date();
+    const gracePeriodEnd = new Date();
+    gracePeriodEnd.setDate(gracePeriodEnd.getDate() + 7);
+
+    const modules = await this.db.query(
+      `SELECT ml.*, o.name as organizationName
+      FROM ModuleLicense ml
+      JOIN Organization o ON ml.organizationId = o.id
+      WHERE ml.status = ?
+      AND ml.expiresAt IS NOT NULL
+      AND ml.expiresAt < ?
+      AND ml.expiresAt >= ?
+      ORDER BY ml.expiresAt ASC`,
+      [ModuleStatus.ACTIVE, now.toISOString(), gracePeriodStart.toISOString()]
+    );
+
+    return modules;
+  }
+
+  /**
+   * Auto-expire modules that are past grace period
+   */
+  async expireModulesPastGracePeriod() {
+    const gracePeriodEnd = new Date();
+    gracePeriodEnd.setDate(gracePeriodEnd.getDate() - 7); // 7 days ago
+
+    await this.db.execute(
+      `UPDATE ModuleLicense
+      SET status = ?, updatedAt = datetime('now')
+      WHERE status = ?
+      AND expiresAt IS NOT NULL
+      AND expiresAt < ?`,
+      [ModuleStatus.EXPIRED, ModuleStatus.ACTIVE, gracePeriodEnd.toISOString()]
+    );
   }
 }

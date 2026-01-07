@@ -4,6 +4,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
+import { CommonModule } from './common/common.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AssetsModule } from './modules/assets/assets.module';
 import { WorkOrdersModule } from './modules/work-orders/work-orders.module';
@@ -15,6 +16,8 @@ import { LocationsModule } from './modules/locations/locations.module';
 import { PMSchedulesModule } from './modules/pm-schedules/pm-schedules.module';
 import { PurchaseRequestsModule } from './modules/purchase-requests/purchase-requests.module';
 import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { BillingModule } from './modules/billing/billing.module';
 
 @Module({
   imports: [
@@ -24,11 +27,14 @@ import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.
     }),
     ScheduleModule.forRoot(),
     DatabaseModule,
+    CommonModule,
     AuthModule,
     AssetsModule,
     WorkOrdersModule,
     ModuleRequestsModule,
     ModuleLicensingModule,
+    NotificationsModule,
+    BillingModule,
     OrganizationsModule,
     UsersModule,
     LocationsModule,

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { randomBytes } from 'crypto';
 
 export interface CreateModuleRequestDto {
@@ -19,7 +20,10 @@ export interface ReviewModuleRequestDto {
 
 @Injectable()
 export class ModuleRequestsService {
-  constructor(private db: DatabaseService) {}
+  constructor(
+    private db: DatabaseService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   async create(data: CreateModuleRequestDto) {
     const id = randomBytes(16).toString('hex');
@@ -141,7 +145,25 @@ export class ModuleRequestsService {
       [id]
     );
 
-    return this.formatModuleRequestWithRelations(requests[0]);
+    const request = this.formatModuleRequestWithRelations(requests[0]);
+
+    // Send notification to requester
+    if (request.requestedById) {
+      const isApproved = data.status === 'approved';
+      await this.notificationsService.create({
+        userId: request.requestedById,
+        title: isApproved
+          ? `Module Request Approved`
+          : `Module Request Rejected`,
+        message: isApproved
+          ? `Your request for the ${request.moduleCode} module has been approved and activated.`
+          : `Your request for the ${request.moduleCode} module has been rejected. ${data.reviewNotes ? `Reason: ${data.reviewNotes}` : ''}`,
+        type: isApproved ? 'success' : 'error',
+        link: `/dashboard/modules`,
+      });
+    }
+
+    return request;
   }
 
   private formatModuleRequestWithRelations(row: any, includeOrganization = false) {

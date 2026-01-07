@@ -2,11 +2,11 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } f
 import { WorkOrdersService } from './work-orders.service';
 import type { CreateWorkOrderDto, UpdateWorkOrderDto } from './work-orders.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { ModuleAccessGuard, RequireModule } from '../../common/guards/module-access.guard';
+import { SimpleModuleAccessGuard, RequireModule } from '../../common/guards/simple-module-access.guard';
 import { ModuleKey } from '../../common/constants/role-permissions.constant';
 
 @Controller('work-orders')
-@UseGuards(JwtAuthGuard, ModuleAccessGuard)
+@UseGuards(JwtAuthGuard, SimpleModuleAccessGuard)
 export class WorkOrdersController {
   constructor(private readonly workOrdersService: WorkOrdersService) {}
 

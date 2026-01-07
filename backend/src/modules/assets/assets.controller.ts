@@ -2,11 +2,11 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } f
 import { AssetsService } from './assets.service';
 import type { CreateAssetDto, UpdateAssetDto } from './assets.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { ModuleAccessGuard, RequireModule } from '../../common/guards/module-access.guard';
+import { SimpleModuleAccessGuard, RequireModule } from '../../common/guards/simple-module-access.guard';
 import { ModuleKey } from '../../common/constants/role-permissions.constant';
 
 @Controller('assets')
-@UseGuards(JwtAuthGuard, ModuleAccessGuard)
+@UseGuards(JwtAuthGuard, SimpleModuleAccessGuard)
 export class AssetsController {
   constructor(private readonly assetsService: AssetsService) {}
 

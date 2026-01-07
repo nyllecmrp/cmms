@@ -227,7 +227,6 @@ export const MODULE_DEFINITIONS: Record<ModuleCode, ModuleDefinition> = {
     name: 'Mobile Application (Advanced)',
     description: 'Offline mode, voice-to-text, navigation',
     tier: ModuleTier.ADVANCED,
-    dependencies: [ModuleCode.SCHEDULING_PLANNING],
     features: ['Offline mode', 'Voice-to-text', 'GPS navigation', 'Mobile signatures'],
   },
 

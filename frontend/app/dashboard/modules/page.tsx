@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 
@@ -11,6 +11,21 @@ interface Module {
   tier: string;
   features: string[];
   benefits: string;
+  dependencies?: string[];
+}
+
+interface ModuleStatus {
+  moduleCode: string;
+  isActive: boolean;
+  status: string;
+  expiresAt?: string;
+}
+
+interface ModuleRequest {
+  id: string;
+  moduleCode: string;
+  requestType: string;
+  status: string;
 }
 
 const AVAILABLE_MODULES: Module[] = [
@@ -54,7 +69,8 @@ const AVAILABLE_MODULES: Module[] = [
       'Integration with 50+ IoT sensors',
       'AI-powered insights'
     ],
-    benefits: 'Reduce downtime by up to 50% with predictive analytics'
+    benefits: 'Reduce downtime by up to 50% with predictive analytics',
+    dependencies: ['asset_management_advanced', 'meter_reading']
   },
   {
     code: 'calibration_management',
@@ -71,44 +87,44 @@ const AVAILABLE_MODULES: Module[] = [
     benefits: 'Ensure regulatory compliance and instrument accuracy'
   },
   {
-    code: 'mobile_cmms',
-    name: 'Mobile CMMS',
-    description: 'Access CMMS features from iOS and Android devices',
-    tier: 'Professional',
+    code: 'mobile_advanced',
+    name: 'Mobile CMMS (Advanced)',
+    description: 'Access CMMS features from iOS and Android devices with offline mode',
+    tier: 'Advanced',
     features: [
-      'iOS and Android apps',
       'Offline mode',
-      'Barcode scanning',
-      'Photo attachments',
-      'Push notifications'
+      'Voice-to-text',
+      'GPS navigation',
+      'Mobile signatures',
+      'Barcode scanning'
     ],
     benefits: 'Enable technicians to work from anywhere, anytime'
   },
   {
-    code: 'reports_analytics',
-    name: 'Reports & Analytics',
-    description: 'Advanced reporting and data visualization tools',
+    code: 'advanced_analytics',
+    name: 'Advanced Analytics & BI',
+    description: 'Custom dashboards and KPI tracking',
     tier: 'Advanced',
     features: [
-      '50+ pre-built reports',
-      'Custom report builder',
-      'Interactive dashboards',
-      'Data export to Excel/PDF',
-      'Scheduled report delivery'
+      'Custom dashboards',
+      'KPI tracking',
+      'Advanced visualizations',
+      'Report builder',
+      'Data export to Excel/PDF'
     ],
     benefits: 'Make data-driven decisions with powerful analytics'
   },
   {
-    code: 'enterprise_api',
-    name: 'Enterprise API',
-    description: 'Integrate CMMS with your existing systems',
-    tier: 'Enterprise Plus',
+    code: 'integration_hub',
+    name: 'Integration Hub & API',
+    description: 'Pre-built integrations and custom API access',
+    tier: 'Premium',
     features: [
-      'RESTful API access',
-      'Webhook support',
-      'Custom integrations',
-      'SSO/SAML authentication',
-      'Dedicated support'
+      'ERP integration',
+      'Custom API access',
+      'Webhooks',
+      'Data sync',
+      'SSO/SAML authentication'
     ],
     benefits: 'Seamlessly connect CMMS with ERP, SCADA, and other systems'
   }
@@ -122,6 +138,30 @@ export default function ModulesPage() {
   const [expectedUsage, setExpectedUsage] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [moduleStatuses, setModuleStatuses] = useState<ModuleStatus[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<ModuleRequest[]>([]);
+
+  useEffect(() => {
+    fetchModuleData();
+  }, []);
+
+  const fetchModuleData = async () => {
+    try {
+      const userData = localStorage.getItem('user');
+      const user = userData ? JSON.parse(userData) : null;
+      if (!user) return;
+
+      // Fetch active modules
+      const modules = await api.getOrganizationModules(user.organizationId) as ModuleStatus[];
+      setModuleStatuses(modules);
+
+      // Fetch pending requests
+      const requests = await api.getModuleRequests(user.organizationId) as ModuleRequest[];
+      setPendingRequests(requests.filter(r => r.status === 'pending'));
+    } catch (err) {
+      console.error('Failed to fetch module data:', err);
+    }
+  };
 
   const handleSubmitRequest = async () => {
     if (!selectedModule) return;
@@ -151,11 +191,18 @@ export default function ModulesPage() {
       setSelectedModule(null);
       setJustification('');
       setExpectedUsage('');
+      fetchModuleData(); // Refresh data
     } catch (err: any) {
       setError(err.message || 'Failed to submit request');
     } finally {
       setLoading(false);
     }
+  };
+
+  const getModuleStatus = (moduleCode: string) => {
+    const status = moduleStatuses.find(m => m.moduleCode === moduleCode);
+    const pendingRequest = pendingRequests.find(r => r.moduleCode === moduleCode);
+    return { status, pendingRequest };
   };
 
   return (
@@ -168,14 +215,31 @@ export default function ModulesPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {AVAILABLE_MODULES.map((module) => (
+        {AVAILABLE_MODULES.map((module) => {
+          const { status, pendingRequest } = getModuleStatus(module.code);
+          const isActive = status?.isActive;
+          const hasPendingTrial = pendingRequest?.requestType === 'trial';
+
+          return (
           <div key={module.code} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition">
             <div className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <h3 className="text-xl font-semibold text-gray-900">{module.name}</h3>
-                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                  {module.tier}
-                </span>
+                <div className="flex flex-col gap-1 items-end">
+                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                    {module.tier}
+                  </span>
+                  {isActive && (
+                    <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                      Active
+                    </span>
+                  )}
+                  {hasPendingTrial && !isActive && (
+                    <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
+                      Pending
+                    </span>
+                  )}
+                </div>
               </div>
 
               <p className="text-gray-600 text-sm mb-4">
@@ -205,6 +269,22 @@ export default function ModulesPage() {
                 </ul>
               </div>
 
+              {module.dependencies && module.dependencies.length > 0 && (
+                <div className="mb-4">
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <p className="text-sm font-medium text-amber-800 mb-1">
+                      ⚠️ Requires:
+                    </p>
+                    <p className="text-xs text-amber-700">
+                      {module.dependencies.map(dep => {
+                        const depModule = AVAILABLE_MODULES.find(m => m.code === dep);
+                        return depModule?.name || dep;
+                      }).join(', ')}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="mb-4">
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                   <p className="text-sm font-medium text-yellow-800">
@@ -216,28 +296,49 @@ export default function ModulesPage() {
                 </div>
               </div>
 
-              <button
-                onClick={() => {
-                  setSelectedModule(module);
-                  setRequestType('trial');
-                }}
-                className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-semibold mb-2"
-              >
-                Start Free Trial
-              </button>
+              {isActive ? (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                  <p className="text-green-800 font-semibold">✓ Module Active</p>
+                  {status?.expiresAt && (
+                    <p className="text-green-700 text-xs mt-1">
+                      Expires: {new Date(status.expiresAt).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+              ) : hasPendingTrial ? (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
+                  <p className="text-yellow-800 font-semibold">⏳ Trial Request Pending</p>
+                  <p className="text-yellow-700 text-xs mt-1">
+                    Awaiting admin approval
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      setSelectedModule(module);
+                      setRequestType('trial');
+                    }}
+                    className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-semibold mb-2"
+                  >
+                    Start Free Trial
+                  </button>
 
-              <button
-                onClick={() => {
-                  setSelectedModule(module);
-                  setRequestType('purchase');
-                }}
-                className="w-full border border-blue-600 text-blue-600 py-2 rounded-lg hover:bg-blue-50 transition font-semibold"
-              >
-                Request Purchase
-              </button>
+                  <button
+                    onClick={() => {
+                      setSelectedModule(module);
+                      setRequestType('purchase');
+                    }}
+                    className="w-full border border-blue-600 text-blue-600 py-2 rounded-lg hover:bg-blue-50 transition font-semibold"
+                  >
+                    Request Purchase
+                  </button>
+                </>
+              )}
             </div>
           </div>
-        ))}
+        );
+        })}
       </div>
 
       {/* Request Modal */}

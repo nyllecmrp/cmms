@@ -1,9 +1,9 @@
 /**
  * API Client for CMMS Backend
- * Base URL configured to use Next.js API proxy
+ * Base URL configured to connect directly to NestJS backend
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 class ApiClient {
   private baseUrl: string;
@@ -50,6 +50,29 @@ class ApiClient {
     }
   }
 
+  // Generic HTTP methods
+  async get<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: 'GET' });
+  }
+
+  async post<T>(endpoint: string, data?: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async put<T>(endpoint: string, data?: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async delete<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: 'DELETE' });
+  }
+
   // Authentication APIs
   async login(data: { email: string; password: string }) {
     return this.request('/auth/login', {
@@ -82,6 +105,10 @@ class ApiClient {
 
   async checkModuleAccess(organizationId: string, moduleCode: string) {
     return this.request(`/module-licensing/organization/${organizationId}/module/${moduleCode}/access`);
+  }
+
+  async getExpiringLicenses() {
+    return this.request('/module-licensing/expiring');
   }
 
   async activateModule(data: {
@@ -210,6 +237,10 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  async getModuleRequests(organizationId: string) {
+    return this.request(`/module-requests?organizationId=${organizationId}`);
   }
 
   async getOrganizationModuleRequests(organizationId: string) {
@@ -715,6 +746,103 @@ class ApiClient {
 
   async getPurchaseRequestStats(organizationId: string) {
     return this.request(`/purchase-requests/stats?organizationId=${organizationId}`);
+  }
+
+  // Notifications APIs
+  async getNotifications(unreadOnly?: boolean) {
+    const query = unreadOnly ? '?unreadOnly=true' : '';
+    return this.request(`/notifications${query}`);
+  }
+
+  async getUnreadNotificationCount() {
+    return this.request('/notifications/unread-count');
+  }
+
+  async markNotificationAsRead(id: string) {
+    return this.request(`/notifications/${id}/read`, {
+      method: 'PUT',
+    });
+  }
+
+  async markAllNotificationsAsRead() {
+    return this.request('/notifications/read-all', {
+      method: 'PUT',
+    });
+  }
+
+  async deleteNotification(id: string) {
+    return this.request(`/notifications/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Billing APIs
+  async calculatePrice(tier: string, userCount: number, billingCycle: 'monthly' | 'annual') {
+    return this.request(`/billing/calculate-price?tier=${tier}&userCount=${userCount}&billingCycle=${billingCycle}`);
+  }
+
+  async createSubscription(data: {
+    organizationId: string;
+    tier: string;
+    userCount: number;
+    billingCycle: 'monthly' | 'annual';
+    paymentMethod: string;
+  }) {
+    return this.request('/billing/subscriptions', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getActiveSubscription(organizationId: string) {
+    return this.request(`/billing/organizations/${organizationId}/subscription`);
+  }
+
+  async cancelSubscription(subscriptionId: string, reason?: string) {
+    return this.request(`/billing/subscriptions/${subscriptionId}/cancel`, {
+      method: 'PUT',
+      body: JSON.stringify({ reason }),
+    });
+  }
+
+  async getPaymentHistory(organizationId: string) {
+    return this.request(`/billing/organizations/${organizationId}/payments`);
+  }
+
+  async processPayment(data: {
+    organizationId: string;
+    amount: number;
+    currency: string;
+    paymentMethod: string;
+    metadata?: any;
+  }) {
+    return this.request('/billing/payments', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Generic HTTP methods for custom requests
+  async get<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: 'GET' });
+  }
+
+  async post<T>(endpoint: string, data: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async put<T>(endpoint: string, data: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async delete<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: 'DELETE' });
   }
 }
 

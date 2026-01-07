@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import LockedModuleModal from '@/components/LockedModuleModal';
 import TrialBanner from '@/components/TrialBanner';
+import NotificationBell from '@/components/NotificationBell';
 import api from '@/lib/api';
 import { canAccessModule, getRoleDisplayName, getRoleColor } from '@/lib/rolePermissions';
 
@@ -200,6 +201,7 @@ export default function DashboardLayout({
                 </svg>
               </button>
               <div className="flex items-center space-x-4">
+                <NotificationBell />
                 <span className="text-sm text-gray-600">
                   Welcome, <span className="font-semibold">{user?.firstName || user?.email?.split('@')[0]}</span>
                 </span>

@@ -3,11 +3,11 @@ import { PMSchedulesService, type CreatePMScheduleDto, type UpdatePMScheduleDto 
 import { PMSchedulesPurchaseService } from './pm-schedules-purchase.service';
 import { PMSchedulesSchedulerService } from './pm-schedules-scheduler.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { ModuleAccessGuard, RequireModule } from '../../common/guards/module-access.guard';
+import { SimpleModuleAccessGuard, RequireModule } from '../../common/guards/simple-module-access.guard';
 import { ModuleKey } from '../../common/constants/role-permissions.constant';
 
 @Controller('pm-schedules')
-@UseGuards(JwtAuthGuard, ModuleAccessGuard)
+@UseGuards(JwtAuthGuard, SimpleModuleAccessGuard)
 export class PMSchedulesController {
   constructor(
     private readonly pmSchedulesService: PMSchedulesService,
