@@ -135,7 +135,7 @@ export class ModuleLicensingService {
       throw new BadRequestException(`Invalid module code: ${moduleCode}`);
     }
     if (moduleDef.dependencies) {
-      const missingDeps = [];
+      const missingDeps: string[] = [];
       for (const depCode of moduleDef.dependencies) {
         const hasAccess = await this.hasModuleAccess(organizationId, depCode as ModuleCode);
         if (!hasAccess) {
