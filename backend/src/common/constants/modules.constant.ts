@@ -95,10 +95,10 @@ export const MODULE_DEFINITIONS: Record<ModuleCode, ModuleDefinition> = {
   },
   [ModuleCode.MOBILE_BASIC]: {
     code: ModuleCode.MOBILE_BASIC,
-    name: 'Mobile Application (Basic)',
-    description: 'View and update work orders on mobile',
+    name: 'Mobile-Responsive Web Interface',
+    description: 'Access CMMS from any mobile browser',
     tier: ModuleTier.CORE,
-    features: ['Mobile view', 'Online-only mode', 'Status updates'],
+    features: ['Responsive design', 'Mobile browser access', 'Touch-optimized UI', 'Real-time updates'],
   },
   [ModuleCode.BASIC_REPORTING]: {
     code: ModuleCode.BASIC_REPORTING,
@@ -120,7 +120,7 @@ export const MODULE_DEFINITIONS: Record<ModuleCode, ModuleDefinition> = {
     code: ModuleCode.INVENTORY_MANAGEMENT,
     name: 'Inventory Management',
     description: 'Parts tracking and stock management',
-    tier: ModuleTier.STANDARD,
+    tier: ModuleTier.CORE,
     features: ['Parts catalog', 'Stock levels', 'Reorder points', 'Multi-location'],
   },
   [ModuleCode.SCHEDULING_PLANNING]: {
@@ -224,10 +224,10 @@ export const MODULE_DEFINITIONS: Record<ModuleCode, ModuleDefinition> = {
   },
   [ModuleCode.MOBILE_ADVANCED]: {
     code: ModuleCode.MOBILE_ADVANCED,
-    name: 'Mobile Application (Advanced)',
-    description: 'Offline mode, voice-to-text, navigation',
-    tier: ModuleTier.ADVANCED,
-    features: ['Offline mode', 'Voice-to-text', 'GPS navigation', 'Mobile signatures'],
+    name: 'Enhanced Mobile Features',
+    description: 'Advanced mobile capabilities for field operations',
+    tier: ModuleTier.CORE,
+    features: ['Camera access for photos', 'Location services', 'File uploads', 'QR code scanning (planned)'],
   },
 
   // Premium Modules
@@ -282,7 +282,9 @@ export const CORE_MODULES = [
   ModuleCode.USER_MANAGEMENT,
   ModuleCode.ASSET_MANAGEMENT_BASIC,
   ModuleCode.WORK_ORDER_BASIC,
+  ModuleCode.INVENTORY_MANAGEMENT,
   ModuleCode.MOBILE_BASIC,
+  ModuleCode.MOBILE_ADVANCED,
   ModuleCode.BASIC_REPORTING,
 ];
 
@@ -294,7 +296,6 @@ export const TIER_MODULES: Record<SubscriptionTier, ModuleCode[]> = {
   [SubscriptionTier.PROFESSIONAL]: [
     ...CORE_MODULES,
     ModuleCode.PREVENTIVE_MAINTENANCE,
-    ModuleCode.INVENTORY_MANAGEMENT,
     ModuleCode.SCHEDULING_PLANNING,
     ModuleCode.ASSET_MANAGEMENT_ADVANCED,
     ModuleCode.WORK_ORDER_ADVANCED,
@@ -305,7 +306,6 @@ export const TIER_MODULES: Record<SubscriptionTier, ModuleCode[]> = {
     ...CORE_MODULES,
     // Standard modules
     ModuleCode.PREVENTIVE_MAINTENANCE,
-    ModuleCode.INVENTORY_MANAGEMENT,
     ModuleCode.SCHEDULING_PLANNING,
     ModuleCode.ASSET_MANAGEMENT_ADVANCED,
     ModuleCode.WORK_ORDER_ADVANCED,
@@ -320,7 +320,6 @@ export const TIER_MODULES: Record<SubscriptionTier, ModuleCode[]> = {
     ModuleCode.FAILURE_ANALYSIS,
     ModuleCode.PROJECT_MANAGEMENT,
     ModuleCode.ENERGY_MANAGEMENT,
-    ModuleCode.MOBILE_ADVANCED,
   ],
   [SubscriptionTier.ENTERPRISE_PLUS]: Object.values(ModuleCode),
 };

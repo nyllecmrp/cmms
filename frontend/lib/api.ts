@@ -822,6 +822,112 @@ class ApiClient {
     });
   }
 
+  // ==================== INVENTORY MANAGEMENT ====================
+
+  // Inventory Items
+  async getInventoryItems(filters?: { categoryId?: string; isActive?: boolean }) {
+    const params = new URLSearchParams();
+    if (filters?.categoryId) params.append('categoryId', filters.categoryId);
+    if (filters?.isActive !== undefined) params.append('isActive', String(filters.isActive));
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/inventory/items${query}`);
+  }
+
+  async getInventoryItem(id: string) {
+    return this.request(`/inventory/items/${id}`);
+  }
+
+  async createInventoryItem(data: {
+    partNumber: string;
+    name: string;
+    description?: string;
+    categoryId?: string;
+    manufacturer?: string;
+    modelNumber?: string;
+    unitOfMeasure?: string;
+    unitCost?: number;
+    minimumStock?: number;
+    maximumStock?: number;
+    reorderPoint?: number;
+    reorderQuantity?: number;
+    leadTimeDays?: number;
+    supplierId?: string;
+    supplierPartNumber?: string;
+    barcode?: string;
+    storageLocation?: string;
+    shelfLife?: number;
+    warrantyPeriod?: number;
+    notes?: string;
+  }) {
+    return this.request('/inventory/items', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateInventoryItem(id: string, data: any) {
+    return this.request(`/inventory/items/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteInventoryItem(id: string) {
+    return this.request(`/inventory/items/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Inventory Transactions
+  async createInventoryTransaction(data: {
+    itemId: string;
+    locationId: string;
+    transactionType: 'purchase' | 'usage' | 'adjustment' | 'return' | 'transfer_out' | 'transfer_in' | 'stock_take';
+    quantity: number;
+    unitCost?: number;
+    referenceType?: string;
+    referenceId?: string;
+    fromLocationId?: string;
+    toLocationId?: string;
+    reason?: string;
+    notes?: string;
+  }) {
+    return this.request('/inventory/transactions', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getItemTransactions(itemId: string, limit = 50) {
+    return this.request(`/inventory/items/${itemId}/transactions?limit=${limit}`);
+  }
+
+  // Work Order Parts
+  async addPartToWorkOrder(data: {
+    workOrderId: string;
+    itemId: string;
+    locationId: string;
+    quantityPlanned: number;
+    quantityUsed?: number;
+    unitCost: number;
+    installedOn?: string;
+    notes?: string;
+  }) {
+    return this.request('/inventory/work-order-parts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getWorkOrderParts(workOrderId: string) {
+    return this.request(`/inventory/work-orders/${workOrderId}/parts`);
+  }
+
+  // Stock Alerts
+  async getStockAlerts(resolved = false) {
+    return this.request(`/inventory/alerts?resolved=${resolved}`);
+  }
+
 }
 
 export const api = new ApiClient(API_BASE_URL);

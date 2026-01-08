@@ -18,6 +18,7 @@ import { PurchaseRequestsModule } from './modules/purchase-requests/purchase-req
 import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { BillingModule } from './modules/billing/billing.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { BillingModule } from './modules/billing/billing.module';
     ModuleLicensingModule,
     NotificationsModule,
     BillingModule,
+    InventoryModule,
     OrganizationsModule,
     UsersModule,
     LocationsModule,

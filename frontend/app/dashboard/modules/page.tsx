@@ -44,20 +44,6 @@ const AVAILABLE_MODULES: Module[] = [
     benefits: 'Reduce downtime by up to 40% with proactive maintenance scheduling'
   },
   {
-    code: 'inventory_management',
-    name: 'Inventory Management',
-    description: 'Track spare parts, manage stock levels, and automate reordering',
-    tier: 'Professional',
-    features: [
-      'Multi-location inventory',
-      'Stock level alerts',
-      'Parts usage tracking',
-      'Automated reorder points',
-      'Vendor management'
-    ],
-    benefits: 'Reduce inventory costs by 25% while ensuring parts availability'
-  },
-  {
     code: 'predictive_maintenance',
     name: 'Predictive Maintenance',
     description: 'Use AI and IoT to predict failures before they happen',
@@ -85,20 +71,6 @@ const AVAILABLE_MODULES: Module[] = [
       'Regulatory reporting'
     ],
     benefits: 'Ensure regulatory compliance and instrument accuracy'
-  },
-  {
-    code: 'mobile_advanced',
-    name: 'Mobile CMMS (Advanced)',
-    description: 'Access CMMS features from iOS and Android devices with offline mode',
-    tier: 'Advanced',
-    features: [
-      'Offline mode',
-      'Voice-to-text',
-      'GPS navigation',
-      'Mobile signatures',
-      'Barcode scanning'
-    ],
-    benefits: 'Enable technicians to work from anywhere, anytime'
   },
   {
     code: 'advanced_analytics',
