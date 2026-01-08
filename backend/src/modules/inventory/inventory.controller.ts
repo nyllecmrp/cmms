@@ -28,7 +28,7 @@ export class InventoryController {
     return this.inventoryService.createItem({
       ...body,
       organizationId: req.user.organizationId,
-      createdById: req.user.userId,
+      createdById: req.user.id,
     });
   }
 
@@ -67,7 +67,7 @@ export class InventoryController {
     return this.inventoryService.createTransaction({
       ...body,
       organizationId: req.user.organizationId,
-      performedById: req.user.userId,
+      performedById: req.user.id,
     });
   }
 
@@ -84,7 +84,7 @@ export class InventoryController {
   async addPartToWorkOrder(@Body() body: any, @Request() req: any) {
     return this.inventoryService.addPartToWorkOrder({
       ...body,
-      addedById: req.user.userId,
+      addedById: req.user.id,
     });
   }
 
