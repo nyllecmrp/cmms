@@ -84,7 +84,7 @@ export default function WCMComponentBOM({ assetId, assetName }: WCMComponentBOMP
   const loadParts = async () => {
     try {
       setLoading(true);
-      const data = await api.get(`/assets/${assetId}/parts`);
+      const data = await api.get(`/assets/${assetId}/parts`) as AssetPart[];
       setParts(Array.isArray(data) ? data : []);
     } catch (error: any) {
       console.error('Failed to load parts:', error);

@@ -278,7 +278,7 @@ export default function AssetPartsManager({ assetId, assetName, onClose }: Asset
       const result = await api.post(`/assets/${assetId}/parts/bulk`, {
         parts: partsToImport,
         createdById: user?.id || '',
-      });
+      }) as { success: number; failed: number; errors: any[] };
 
       alert(`Import complete: ${result.success} succeeded, ${result.failed} failed`);
       setShowBulkImport(false);
