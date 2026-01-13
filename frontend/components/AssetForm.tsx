@@ -72,7 +72,6 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
       setFormData({
         assetNumber: asset.assetNumber || '',
         name: asset.name || '',
-        category: asset.category || 'Equipment',
         status: asset.status || 'operational',
         manufacturer: asset.manufacturer || '',
         model: asset.model || '',
