@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Modal from './Modal';
 import FileUpload from './FileUpload';
 import api from '@/lib/api';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface Asset {
   id?: string;
@@ -27,7 +28,6 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
   const [formData, setFormData] = useState({
     assetNumber: '',
     name: '',
-    category: 'Equipment',
     status: 'operational',
     manufacturer: '',
     model: '',
@@ -38,9 +38,11 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
   const [locations, setLocations] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
-  const [maintenanceParts, setMaintenanceParts] = useState<Array<{name: string, quantity: string, estimatedCost: string}>>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // ESC key to close form
+  useEscapeKey(onClose, isOpen);
 
   useEffect(() => {
     if (isOpen) {
@@ -78,23 +80,6 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
         locationId: '',
         parentAssetId: '',
       });
-
-      // Parse maintenanceParts from JSON if available
-      if ((asset as any).maintenanceParts) {
-        try {
-          const parsedParts = JSON.parse((asset as any).maintenanceParts);
-          setMaintenanceParts(parsedParts.map((p: any) => ({
-            name: p.name || '',
-            quantity: String(p.quantity || ''),
-            estimatedCost: String(p.estimatedCost || ''),
-          })));
-        } catch (e) {
-          console.error('Failed to parse maintenanceParts:', e);
-          setMaintenanceParts([]);
-        }
-      } else {
-        setMaintenanceParts([]);
-      }
     } else {
       setFormData({
         assetNumber: '',
@@ -107,7 +92,6 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
         locationId: '',
         parentAssetId: '',
       });
-      setMaintenanceParts([]);
     }
     setUploadedFiles([]);
   }, [asset, isOpen]);
@@ -130,38 +114,20 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
       // and store the URLs in the database. For now, we'll simulate this.
       const attachmentUrls = uploadedFiles.map(file => `/uploads/${file.name}`);
 
-      // Convert parts array to JSON if there are parts with filled data
-      const validParts = maintenanceParts.filter(p => p.name.trim() && p.quantity && p.estimatedCost);
-      const partsJson = validParts.length > 0
-        ? JSON.stringify(validParts.map(p => ({
-            name: p.name.trim(),
-            quantity: parseInt(p.quantity),
-            estimatedCost: parseFloat(p.estimatedCost)
-          })))
-        : undefined;
-
-      console.log('🔧 Maintenance Parts Debug:', {
-        maintenanceParts,
-        validParts,
-        partsJson
-      });
-
       if (asset?.id) {
         // Update existing asset
         const updatePayload = {
           organizationId,
           assetNumber: formData.assetNumber,
           name: formData.name,
-          category: formData.category,
+          category: 'Equipment', // Fixed category for machines
           status: formData.status,
           manufacturer: formData.manufacturer || undefined,
           model: formData.model || undefined,
           serialNumber: formData.serialNumber || undefined,
           locationId: formData.locationId || undefined,
           parentAssetId: formData.parentAssetId || undefined,
-          maintenanceParts: partsJson,
         };
-        console.log('📤 Update Payload:', updatePayload);
         await api.updateAsset(asset.id, updatePayload);
       } else {
         // Create new asset
@@ -169,6 +135,7 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
           organizationId,
           createdById: user?.id || '',
           ...formData,
+          category: 'Equipment', // Fixed category for machines
           locationId: formData.locationId || undefined,
           parentAssetId: formData.parentAssetId || undefined,
         } as any);
@@ -183,7 +150,6 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
       setFormData({
         assetNumber: '',
         name: '',
-        category: 'Equipment',
         status: 'operational',
         manufacturer: '',
         model: '',
@@ -192,7 +158,6 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
         parentAssetId: '',
       });
       setUploadedFiles([]);
-      setMaintenanceParts([]);
       setError('');
 
       onSuccess();
@@ -239,39 +204,20 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Category *
-            </label>
-            <select
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-              required
-            >
-              <option value="Equipment">Equipment</option>
-              <option value="Facility">Facility</option>
-              <option value="Vehicle">Vehicle</option>
-              <option value="IT">IT</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Status *
-            </label>
-            <select
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-              required
-            >
-              <option value="operational">Operational</option>
-              <option value="down">Down</option>
-              <option value="maintenance">Maintenance</option>
-            </select>
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Status *
+          </label>
+          <select
+            value={formData.status}
+            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+            required
+          >
+            <option value="operational">Operational</option>
+            <option value="down">Down</option>
+            <option value="maintenance">Maintenance</option>
+          </select>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -363,71 +309,16 @@ export default function AssetForm({ isOpen, onClose, onSuccess, asset }: AssetFo
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Maintenance Parts
-            <span className="text-xs text-gray-500 font-normal ml-1">(Optional - Common parts needed for this asset)</span>
-          </label>
-
-          {maintenanceParts.map((part, index) => (
-            <div key={index} className="flex gap-2 mb-2">
-              <input
-                type="text"
-                placeholder="Part name"
-                value={part.name}
-                onChange={(e) => {
-                  const newParts = [...maintenanceParts];
-                  newParts[index].name = e.target.value;
-                  setMaintenanceParts(newParts);
-                }}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-              />
-              <input
-                type="number"
-                placeholder="Qty"
-                value={part.quantity}
-                onChange={(e) => {
-                  const newParts = [...maintenanceParts];
-                  newParts[index].quantity = e.target.value;
-                  setMaintenanceParts(newParts);
-                }}
-                className="w-20 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-              />
-              <input
-                type="number"
-                placeholder="Cost"
-                value={part.estimatedCost}
-                onChange={(e) => {
-                  const newParts = [...maintenanceParts];
-                  newParts[index].estimatedCost = e.target.value;
-                  setMaintenanceParts(newParts);
-                }}
-                className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-              />
-              <button
-                type="button"
-                onClick={() => setMaintenanceParts(maintenanceParts.filter((_, i) => i !== index))}
-                className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-md transition"
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-
-          <button
-            type="button"
-            onClick={() => setMaintenanceParts([...maintenanceParts, { name: '', quantity: '', estimatedCost: '' }])}
-            className="mt-2 px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-md transition border border-blue-200"
-          >
-            + Add Part
-          </button>
-
-          {maintenanceParts.length > 0 && (
-            <p className="text-xs text-gray-500 mt-2">
-              These parts will be suggested when creating maintenance schedules for this asset.
+        {asset?.id && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-sm text-gray-700 mb-2">
+              <strong>💡 Tip:</strong> To manage parts for this asset, save the form and click the <strong>"🔧 Parts"</strong> button on the assets list.
             </p>
-          )}
-        </div>
+            <p className="text-xs text-gray-600">
+              The new parts system allows you to link inventory items, track stock levels, and manage hundreds of parts efficiently.
+            </p>
+          </div>
+        )}
 
         <div className="flex justify-end space-x-3 mt-6">
           <button

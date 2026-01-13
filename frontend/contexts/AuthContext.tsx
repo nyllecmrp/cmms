@@ -52,12 +52,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const profile = await api.getProfile();
             setUser(profile as User);
           } catch (error) {
-            // Token might be invalid, but keep stored user for now
-            console.warn('Token verification failed, using stored user');
+            // Token might be invalid or expired, clear auth state
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            setUser(null);
           }
         } catch (error) {
           // JSON parse failed or other error, clear storage
-          console.error('Auth check failed:', error);
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           setUser(null);

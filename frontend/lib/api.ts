@@ -45,14 +45,29 @@ class ApiClient {
 
       return response.json();
     } catch (error) {
-      console.error('API Request failed:', error);
+      // Only log errors that aren't expected auth failures
+      if (!(error instanceof Error && error.message === 'Unauthorized' && endpoint === '/auth/me')) {
+        console.error('API Request failed:', error);
+      }
       throw error;
     }
   }
 
   // Generic HTTP methods
-  async get<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'GET' });
+  async get<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
+    let url = endpoint;
+    if (params) {
+      const queryString = new URLSearchParams(
+        Object.entries(params).reduce((acc, [key, value]) => {
+          if (value !== undefined && value !== null) {
+            acc[key] = String(value);
+          }
+          return acc;
+        }, {} as Record<string, string>)
+      ).toString();
+      url = `${endpoint}?${queryString}`;
+    }
+    return this.request<T>(url, { method: 'GET' });
   }
 
   async post<T>(endpoint: string, data?: any): Promise<T> {

@@ -1,0 +1,72 @@
+@media print {
+  /* Hide non-essential elements */
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Reset page margins for better print layout */
+  @page {
+    margin: 0.5in;
+    size: landscape;
+  }
+
+  /* Ensure page breaks work properly */
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Prevent page breaks inside tables */
+  table {
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  /* Ensure colors print correctly */
+  .bg-blue-900,
+  .bg-green-500,
+  .bg-yellow-600,
+  .bg-purple-600,
+  .bg-cyan-600,
+  .bg-red-600,
+  .bg-orange-600,
+  .bg-gray-600,
+  .bg-indigo-600 {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Remove shadows for cleaner print */
+  .shadow-lg {
+    box-shadow: none !important;
+  }
+
+  /* Ensure background colors print */
+  .bg-gray-50,
+  .bg-blue-50,
+  .bg-white {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Optimize font sizes for print */
+  body {
+    font-size: 10pt;
+  }
+
+  h1, h2, h3 {
+    page-break-after: avoid;
+  }
+}

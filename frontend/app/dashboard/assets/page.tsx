@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
 import AssetForm from '@/components/AssetForm';
+import AssetPartsManager from '@/components/AssetPartsManager';
 import RoleGuard from '@/components/RoleGuard';
 import { canPerformAction } from '@/lib/rolePermissions';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface Asset {
   id: string;
@@ -31,10 +33,16 @@ export default function AssetsPage() {
   const [maintenanceHistory, setMaintenanceHistory] = useState<any>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [expandedTimelineItems, setExpandedTimelineItems] = useState<Set<string>>(new Set());
+  const [showPartsManager, setShowPartsManager] = useState(false);
+  const [partsManagerAsset, setPartsManagerAsset] = useState<Asset | null>(null);
 
   const canCreate = canPerformAction(user?.roleId || null, 'create');
   const canEdit = canPerformAction(user?.roleId || null, 'edit');
   const canDelete = canPerformAction(user?.roleId || null, 'delete');
+
+  // ESC key handlers for modals
+  useEscapeKey(() => setShowHistoryModal(false), showHistoryModal);
+  useEscapeKey(() => setShowPartsManager(false), showPartsManager);
 
   useEffect(() => {
     const fetchAssets = async () => {
@@ -116,6 +124,11 @@ export default function AssetsPage() {
     }
   };
 
+  const handleManageParts = (asset: Asset) => {
+    setPartsManagerAsset(asset);
+    setShowPartsManager(true);
+  };
+
   const handleDeleteAsset = async (assetId: string) => {
     if (!confirm('Are you sure you want to delete this asset?')) {
       return;
@@ -186,12 +199,6 @@ export default function AssetsPage() {
             />
           </div>
           <select className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900">
-            <option>All Categories</option>
-            <option>Equipment</option>
-            <option>Facility</option>
-            <option>Vehicle</option>
-          </select>
-          <select className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900">
             <option>All Status</option>
             <option>Operational</option>
             <option>Down</option>
@@ -224,13 +231,10 @@ export default function AssetsPage() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Asset #
+                    Machine #
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Category
+                    Machine Name
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
@@ -250,14 +254,25 @@ export default function AssetsPage() {
                       <div className="text-sm font-medium text-gray-900">{asset.name}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-600">{asset.category}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(asset.status)}`}>
                         {asset.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <Link
+                        href={`/dashboard/assets/${asset.id}/machine-ledger`}
+                        className="text-purple-600 hover:text-purple-800 mr-3 font-medium"
+                        title="Machine Ledger (WCM)"
+                      >
+                        📋 Ledger
+                      </Link>
+                      <button
+                        onClick={() => handleManageParts(asset)}
+                        className="text-green-600 hover:text-green-800 mr-3 font-medium"
+                        title="Manage Parts"
+                      >
+                        🔧 Parts
+                      </button>
                       <button
                         onClick={() => handleViewHistory(asset)}
                         className="text-blue-600 hover:text-blue-800 mr-3 font-medium"
@@ -517,6 +532,36 @@ export default function AssetsPage() {
                                           </span>
                                         </div>
                                       )}
+                                      {event.componentClassification && (
+                                        <div>
+                                          <span className="text-gray-500">Component Type:</span>
+                                          <span className="ml-2 font-medium text-blue-600">{event.componentClassification}</span>
+                                        </div>
+                                      )}
+                                      {event.maintenanceTimeMinutes && (
+                                        <div>
+                                          <span className="text-gray-500">Maintenance Time:</span>
+                                          <span className="ml-2 font-medium text-gray-900">{event.maintenanceTimeMinutes} min</span>
+                                        </div>
+                                      )}
+                                      {event.activityFrequencyWeeks && (
+                                        <div>
+                                          <span className="text-gray-500">Activity Frequency:</span>
+                                          <span className="ml-2 font-medium text-gray-900">{event.activityFrequencyWeeks} weeks</span>
+                                        </div>
+                                      )}
+                                      {event.basedOnMachineCycle && (
+                                        <div>
+                                          <span className="text-gray-500">Cycle-Based:</span>
+                                          <span className="ml-2 font-medium text-green-600">Yes ({event.machineCycleInterval} hrs)</span>
+                                        </div>
+                                      )}
+                                      {event.machineHoursAtMaintenance && (
+                                        <div>
+                                          <span className="text-gray-500">Machine Hours:</span>
+                                          <span className="ml-2 font-medium text-gray-900">{event.machineHoursAtMaintenance} hrs</span>
+                                        </div>
+                                      )}
                                     </div>
 
                                     {/* Description */}
@@ -535,10 +580,45 @@ export default function AssetsPage() {
                                       </div>
                                     )}
 
-                                    {/* Parts */}
+                                    {/* Parts Used in Work Order */}
+                                    {event.partsUsed && event.partsUsed.length > 0 && (
+                                      <div>
+                                        <p className="text-xs font-semibold text-gray-700 mb-2">Parts Used in This Work Order:</p>
+                                        <div className="overflow-x-auto">
+                                          <table className="w-full text-xs border border-gray-300">
+                                            <thead className="bg-gray-100">
+                                              <tr>
+                                                <th className="border border-gray-300 px-2 py-1 text-left">Part Number</th>
+                                                <th className="border border-gray-300 px-2 py-1 text-left">Part Name</th>
+                                                <th className="border border-gray-300 px-2 py-1 text-left">Manufacturer</th>
+                                                <th className="border border-gray-300 px-2 py-1 text-center">Qty Planned</th>
+                                                <th className="border border-gray-300 px-2 py-1 text-center">Qty Used</th>
+                                                <th className="border border-gray-300 px-2 py-1 text-right">Unit Cost</th>
+                                                <th className="border border-gray-300 px-2 py-1 text-right">Total Cost</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {event.partsUsed.map((part: any, partIdx: number) => (
+                                                <tr key={partIdx} className="hover:bg-gray-50">
+                                                  <td className="border border-gray-300 px-2 py-1 font-mono text-blue-700">{part.partNumber || 'N/A'}</td>
+                                                  <td className="border border-gray-300 px-2 py-1 font-medium">{part.partName || 'N/A'}</td>
+                                                  <td className="border border-gray-300 px-2 py-1">{part.manufacturer || '-'}</td>
+                                                  <td className="border border-gray-300 px-2 py-1 text-center">{part.quantityPlanned || 0}</td>
+                                                  <td className="border border-gray-300 px-2 py-1 text-center font-semibold">{part.quantityUsed || 0}</td>
+                                                  <td className="border border-gray-300 px-2 py-1 text-right">₱{(part.unitCost || 0).toLocaleString()}</td>
+                                                  <td className="border border-gray-300 px-2 py-1 text-right font-semibold text-blue-700">₱{(part.totalCost || 0).toLocaleString()}</td>
+                                                </tr>
+                                              ))}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Parts Required (PM Schedule) */}
                                     {event.parts && event.parts.length > 0 && (
                                       <div>
-                                        <p className="text-xs text-gray-500 mb-2">Parts Used/Required:</p>
+                                        <p className="text-xs font-semibold text-gray-700 mb-2">Parts Required (PM Schedule):</p>
                                         <div className="space-y-2">
                                           {event.parts.map((part: any, partIdx: number) => (
                                             <div key={partIdx} className="flex items-center justify-between bg-white border border-blue-100 rounded px-3 py-2">
@@ -590,6 +670,18 @@ export default function AssetsPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Asset Parts Manager Modal */}
+        {showPartsManager && partsManagerAsset && (
+          <AssetPartsManager
+            assetId={partsManagerAsset.id}
+            assetName={`${partsManagerAsset.assetNumber} - ${partsManagerAsset.name}`}
+            onClose={() => {
+              setShowPartsManager(false);
+              setPartsManagerAsset(null);
+            }}
+          />
         )}
       </div>
     </RoleGuard>

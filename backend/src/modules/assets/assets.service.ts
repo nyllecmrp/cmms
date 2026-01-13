@@ -351,8 +351,32 @@ export class AssetsService {
     // Get maintenance timeline (work orders + PM completions combined)
     const timeline: any[] = [];
 
+    // Fetch parts used in each work order
+    const workOrderPartsMap = new Map();
+    for (const wo of workOrders) {
+      try {
+        const parts = await this.db.query(
+          `SELECT
+            wop.*,
+            ii.partNumber,
+            ii.name as partName,
+            ii.description as partDescription,
+            ii.manufacturer,
+            ii.modelNumber
+          FROM WorkOrderPart wop
+          LEFT JOIN InventoryItem ii ON wop.itemId = ii.id
+          WHERE wop.workOrderId = ?`,
+          [wo.id]
+        );
+        workOrderPartsMap.set(wo.id, parts || []);
+      } catch (e) {
+        workOrderPartsMap.set(wo.id, []);
+      }
+    }
+
     // Add work orders to timeline
     workOrders.forEach((wo: any) => {
+      const parts = workOrderPartsMap.get(wo.id) || [];
       timeline.push({
         id: wo.id,
         type: 'work_order',
@@ -369,6 +393,23 @@ export class AssetsService {
         cost: wo.actualCost || 0,
         hours: wo.actualHours || 0,
         notes: wo.notes,
+        componentClassification: wo.componentClassification,
+        maintenanceTimeMinutes: wo.maintenanceTimeMinutes,
+        machineHoursAtMaintenance: wo.machineHoursAtMaintenance,
+        partsUsed: parts.map((p: any) => ({
+          id: p.id,
+          partNumber: p.partNumber,
+          partName: p.partName,
+          description: p.partDescription,
+          manufacturer: p.manufacturer,
+          modelNumber: p.modelNumber,
+          quantityPlanned: p.quantityPlanned,
+          quantityUsed: p.quantityUsed,
+          unitCost: p.unitCost,
+          totalCost: p.totalCost,
+          status: p.status,
+          notes: p.notes
+        }))
       });
     });
 
@@ -397,6 +438,11 @@ export class AssetsService {
             : 'Unassigned',
           estimatedHours: pm.estimatedHours || 0,
           parts: parsedParts,
+          componentClassification: pm.componentClassification,
+          activityFrequencyWeeks: pm.activityFrequencyWeeks,
+          basedOnMachineCycle: pm.basedOnMachineCycle === 1,
+          machineCycleInterval: pm.machineCycleInterval,
+          maintenanceTimeMinutes: pm.maintenanceTimeMinutes,
         });
       }
     });
