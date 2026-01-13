@@ -129,7 +129,7 @@ export default function AssetPartsManager({ assetId, assetName, onClose }: Asset
         searchTerm,
         limit: 50,
       });
-      setSearchResults(data);
+      setSearchResults(data as InventoryItem[]);
     } catch (err: any) {
       console.error('Search failed:', err);
     } finally {
