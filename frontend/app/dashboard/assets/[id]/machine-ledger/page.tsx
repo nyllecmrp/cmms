@@ -96,7 +96,7 @@ export default function MachineLedgerPage() {
       console.log('Is Parts Array?', Array.isArray(partsData));
       console.log('Parts Data Type:', typeof partsData);
 
-      setAsset(assetData);
+      setAsset(assetData as Asset);
       // Ensure partsData is an array
       if (Array.isArray(partsData)) {
         setParts(partsData);
