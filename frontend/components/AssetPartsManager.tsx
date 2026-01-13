@@ -109,7 +109,7 @@ export default function AssetPartsManager({ assetId, assetName, onClose }: Asset
     try {
       setLoading(true);
       const data = await api.get(`/assets/${assetId}/parts`);
-      setParts(data);
+      setParts(data as AssetPart[]);
     } catch (err: any) {
       setError(err.message || 'Failed to load parts');
     } finally {
