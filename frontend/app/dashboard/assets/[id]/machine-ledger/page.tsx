@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
 import WCMLedgerGrid from '@/components/WCMLedgerGrid';
 import WCMComponentBOM from '@/components/WCMComponentBOM';
+import MaintenanceCalendar from '@/components/MaintenanceCalendar';
 
 type TabType = 'ledger' | 'calendar' | 'bom' | 'breakdown' | 'reports';
 
@@ -236,15 +237,7 @@ export default function MachineLedgerPage() {
 
           {/* Tab 2: Maintenance Calendar */}
           {activeTab === 'calendar' && (
-            <div className="bg-white shadow-lg rounded-lg p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">📅 Maintenance Calendar (52-Week View)</h2>
-              <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-8 text-center">
-                <p className="text-lg text-gray-700 mb-2">🚧 Coming Soon</p>
-                <p className="text-sm text-gray-600">
-                  Drag-and-drop maintenance scheduling with 52-week grid view
-                </p>
-              </div>
-            </div>
+            <MaintenanceCalendar assetId={assetId} assetName={asset.name} parts={parts} />
           )}
 
           {/* Tab 3: Component BOM */}

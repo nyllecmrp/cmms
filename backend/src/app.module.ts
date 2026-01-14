@@ -19,6 +19,7 @@ import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
+import { MaintenanceScheduleModule } from './modules/maintenance-schedule/maintenance-schedule.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
     NotificationsModule,
     BillingModule,
     InventoryModule,
+    MaintenanceScheduleModule,
     OrganizationsModule,
     UsersModule,
     LocationsModule,
