@@ -41,9 +41,10 @@ interface WCMLedgerGridProps {
   parts: AssetPart[];
   year?: number;
   onDataChange?: () => void;
+  refreshKey?: number;
 }
 
-export default function WCMLedgerGrid({ asset, parts, year = new Date().getFullYear(), onDataChange }: WCMLedgerGridProps) {
+export default function WCMLedgerGrid({ asset, parts, year = new Date().getFullYear(), onDataChange, refreshKey = 0 }: WCMLedgerGridProps) {
   const weeks = Array.from({ length: 52 }, (_, i) => i + 1);
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
   const [editingCell, setEditingCell] = useState<{ partId: string; field: string } | null>(null);
@@ -66,7 +67,7 @@ export default function WCMLedgerGrid({ asset, parts, year = new Date().getFullY
     if (parts.length > 0) {
       loadSchedules();
     }
-  }, [parts, year]);
+  }, [parts, year, refreshKey]);
 
 
   const getClassificationBadge = (classification?: string) => {

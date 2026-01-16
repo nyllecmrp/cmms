@@ -34,9 +34,10 @@ interface MaintenanceCalendarProps {
   assetId: string;
   assetName: string;
   parts: AssetPart[];
+  onScheduleChange?: () => void;
 }
 
-export default function MaintenanceCalendar({ assetId, assetName, parts }: MaintenanceCalendarProps) {
+export default function MaintenanceCalendar({ assetId, assetName, parts, onScheduleChange }: MaintenanceCalendarProps) {
   const { user } = useAuth();
   const currentYear = new Date().getFullYear();
   const currentWeek = Math.ceil((new Date().getTime() - new Date(currentYear, 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
@@ -45,6 +46,12 @@ export default function MaintenanceCalendar({ assetId, assetName, parts }: Maint
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
   const [tasks, setTasks] = useState<MaintenanceTask[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [newTask, setNewTask] = useState({
+    partId: '',
+    maintenanceType: 'PM' as 'PM' | 'AM' | 'QM' | 'GM',
+    status: 'planned' as 'planned' | 'completed' | 'overdue',
+  });
 
   const weeks = Array.from({ length: 52 }, (_, i) => i + 1);
 
@@ -125,6 +132,56 @@ export default function MaintenanceCalendar({ assetId, assetName, parts }: Maint
     }
   };
 
+
+  const addManualTask = async () => {
+    if (!selectedWeek || !newTask.partId) {
+      alert('Please select a part and ensure a week is selected');
+      return;
+    }
+
+    const part = parts.find(p => p.id === newTask.partId);
+    if (!part) return;
+
+    try {
+      setLoading(true);
+      await api.post('/maintenance-schedule/manual', {
+        assetId,
+        assetPartId: newTask.partId,
+        weekNumber: selectedWeek,
+        year,
+        maintenanceType: newTask.maintenanceType,
+        status: newTask.status,
+        partNumber: part.partNumber,
+        partName: part.partName,
+      });
+      
+      setShowAddTask(false);
+      setNewTask({
+        partId: '',
+        maintenanceType: 'PM',
+        status: 'planned',
+      });
+      loadSchedule();
+      if (onScheduleChange) onScheduleChange();
+    } catch (error: any) {
+      alert(`Failed to add task: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteTask = async (taskId: string) => {
+    if (!confirm('Delete this maintenance task?')) return;
+    
+    try {
+      await api.delete(`/maintenance-schedule/${taskId}`);
+      loadSchedule();
+      if (onScheduleChange) onScheduleChange();
+    } catch (error: any) {
+      alert(`Failed to delete task: ${error.message}`);
+    }
+  };
+
   const toggleTaskStatus = async (task: MaintenanceTask) => {
     try {
       const newStatus = task.status === 'completed' ? 'planned' : 'completed';
@@ -133,6 +190,7 @@ export default function MaintenanceCalendar({ assetId, assetName, parts }: Maint
         completedDate: newStatus === 'completed' ? new Date().toISOString() : null,
       });
       loadSchedule();
+      if (onScheduleChange) onScheduleChange();
     } catch (error: any) {
       alert(`Failed to update task: ${error.message}`);
     }
@@ -290,33 +348,33 @@ export default function MaintenanceCalendar({ assetId, assetName, parts }: Maint
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-blue-600 text-white flex items-center justify-center rounded font-bold text-xs">PM</div>
-                  <span className="text-sm">Preventive Maintenance</span>
+                  <span className="text-sm text-gray-900 font-semibold">Preventive Maintenance</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-green-600 text-white flex items-center justify-center rounded font-bold text-xs">AM</div>
-                  <span className="text-sm">Autonomous Maintenance</span>
+                  <span className="text-sm text-gray-900 font-semibold">Autonomous Maintenance</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-purple-600 text-white flex items-center justify-center rounded font-bold text-xs">QM</div>
-                  <span className="text-sm">Quality Maintenance</span>
+                  <span className="text-sm text-gray-900 font-semibold">Quality Maintenance</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-orange-600 text-white flex items-center justify-center rounded font-bold text-xs">GM</div>
-                  <span className="text-sm">General Maintenance</span>
+                  <span className="text-sm text-gray-900 font-semibold">General Maintenance</span>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-gray-300">
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 bg-green-100 border-2 border-green-400 rounded"></div>
-                  <span className="text-sm">Completed</span>
+                  <span className="text-sm text-gray-900 font-semibold">Completed</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 bg-blue-100 border-2 border-blue-400 rounded"></div>
-                  <span className="text-sm">Planned</span>
+                  <span className="text-sm text-gray-900 font-semibold">Planned</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 bg-red-100 border-2 border-red-400 rounded"></div>
-                  <span className="text-sm">Overdue</span>
+                  <span className="text-sm text-gray-900 font-semibold">Overdue</span>
                 </div>
               </div>
             </div>

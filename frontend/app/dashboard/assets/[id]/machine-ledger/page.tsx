@@ -77,6 +77,11 @@ export default function MachineLedgerPage() {
   const [parts, setParts] = useState<AssetPart[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('ledger');
+  const [scheduleRefreshKey, setScheduleRefreshKey] = useState(0);
+
+  const handleScheduleChange = () => {
+    setScheduleRefreshKey(prev => prev + 1);
+  };
 
   useEffect(() => {
     if (assetId) {
@@ -234,12 +239,12 @@ export default function MachineLedgerPage() {
         <div className="max-w-full mx-auto p-6 print:p-4">
           {/* Tab 1: Machine Ledger (WCM Grid) */}
           {activeTab === 'ledger' && (
-            <WCMLedgerGrid asset={asset} parts={parts} year={new Date().getFullYear()} onDataChange={loadData} />
+            <WCMLedgerGrid asset={asset} parts={parts} year={new Date().getFullYear()} onDataChange={loadData} refreshKey={scheduleRefreshKey} />
           )}
 
           {/* Tab 2: Maintenance Calendar */}
           {activeTab === 'calendar' && (
-            <MaintenanceCalendar assetId={assetId} assetName={asset.name} parts={parts} />
+            <MaintenanceCalendar assetId={assetId} assetName={asset.name} parts={parts} onScheduleChange={handleScheduleChange} />
           )}
 
           {/* Tab 3: Component BOM */}
