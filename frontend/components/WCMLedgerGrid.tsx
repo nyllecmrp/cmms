@@ -36,6 +36,7 @@ interface MaintenanceSchedule {
 interface WCMLedgerGridProps {
   asset: {
     assetNumber: string;
+    id?: string;
     name: string;
   };
   parts: AssetPart[];
@@ -55,7 +56,7 @@ export default function WCMLedgerGrid({ asset, parts, year = new Date().getFullY
   useEffect(() => {
     const loadSchedules = async () => {
       try {
-        const assetId = parts[0]?.assetId;
+        const assetId = asset.id;
         if (!assetId) return;
         const data = await api.get(`/maintenance-schedule/${assetId}?year=${year}`) as MaintenanceSchedule[];
         setSchedules(data);
