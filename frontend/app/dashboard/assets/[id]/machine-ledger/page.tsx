@@ -7,6 +7,7 @@ import api from '@/lib/api';
 import WCMLedgerGrid from '@/components/WCMLedgerGrid';
 import WCMComponentBOM from '@/components/WCMComponentBOM';
 import MaintenanceCalendar from '@/components/MaintenanceCalendar';
+import AssetPartsImport from '@/components/AssetPartsImport';
 
 type TabType = 'ledger' | 'calendar' | 'bom' | 'breakdown' | 'reports';
 
@@ -193,6 +194,7 @@ export default function MachineLedgerPage() {
             <p className="text-sm text-gray-600">{asset.assetNumber} - {asset.name}</p>
           </div>
           <div className="flex gap-3">
+            <AssetPartsImport assetId={assetId} onImportComplete={loadData} />
             <button
               onClick={handlePrint}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
@@ -232,7 +234,7 @@ export default function MachineLedgerPage() {
         <div className="max-w-full mx-auto p-6 print:p-4">
           {/* Tab 1: Machine Ledger (WCM Grid) */}
           {activeTab === 'ledger' && (
-            <WCMLedgerGrid asset={asset} parts={parts} year={new Date().getFullYear()} />
+            <WCMLedgerGrid asset={asset} parts={parts} year={new Date().getFullYear()} onDataChange={loadData} />
           )}
 
           {/* Tab 2: Maintenance Calendar */}

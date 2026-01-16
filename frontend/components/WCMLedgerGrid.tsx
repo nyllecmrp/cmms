@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import api from '@/lib/api';
 
 interface AssetPart {
   id: string;
@@ -23,6 +24,15 @@ interface AssetPart {
   vendor?: string;
 }
 
+
+interface MaintenanceSchedule {
+  id: string;
+  assetPartId: string;
+  weekNumber: number;
+  maintenanceType: 'PM' | 'AM' | 'QM' | 'GM';
+  status: 'planned' | 'completed' | 'skipped' | 'overdue';
+}
+
 interface WCMLedgerGridProps {
   asset: {
     assetNumber: string;
@@ -30,31 +40,167 @@ interface WCMLedgerGridProps {
   };
   parts: AssetPart[];
   year?: number;
+  onDataChange?: () => void;
 }
 
-export default function WCMLedgerGrid({ asset, parts, year = new Date().getFullYear() }: WCMLedgerGridProps) {
+export default function WCMLedgerGrid({ asset, parts, year = new Date().getFullYear(), onDataChange }: WCMLedgerGridProps) {
   const weeks = Array.from({ length: 52 }, (_, i) => i + 1);
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
+  const [editingCell, setEditingCell] = useState<{ partId: string; field: string } | null>(null);
+  const [editValue, setEditValue] = useState<string>('');
+  const [saving, setSaving] = useState(false);
+  const [schedules, setSchedules] = useState<MaintenanceSchedule[]>([]);
+
+  useEffect(() => {
+    const loadSchedules = async () => {
+      try {
+        const assetId = parts[0]?.assetId;
+        if (!assetId) return;
+        const data = await api.get(`/maintenance-schedule/${assetId}?year=${year}`) as MaintenanceSchedule[];
+        setSchedules(data);
+      } catch (error) {
+        console.error('Failed to load schedules:', error);
+        setSchedules([]);
+      }
+    };
+    if (parts.length > 0) {
+      loadSchedules();
+    }
+  }, [parts, year]);
+
 
   const getClassificationBadge = (classification?: string) => {
     if (!classification) return <span className="text-gray-400 text-xs">-</span>;
 
     const badges: Record<string, { label: string; color: string }> = {
+      'Critical': { label: 'A', color: 'bg-red-600' },
+      'Important': { label: 'B', color: 'bg-yellow-600' },
+      'Standard': { label: 'C', color: 'bg-green-600' },
       'A': { label: 'A', color: 'bg-red-600' },
       'B': { label: 'B', color: 'bg-yellow-600' },
       'C': { label: 'C', color: 'bg-green-600' },
     };
 
-    const classUpper = classification.toUpperCase();
-    const badge = badges[classUpper] || { label: classification, color: 'bg-gray-400' };
+    const badge = badges[classification] || { label: classification.charAt(0).toUpperCase(), color: 'bg-gray-400' };
 
     return (
       <span
         className={`inline-block w-6 h-6 ${badge.color} text-white text-xs font-bold rounded flex items-center justify-center`}
-        title={`Class ${badge.label}`}
+        title={classification}
       >
         {badge.label}
       </span>
+    );
+  };
+
+
+  const getScheduleForCell = (partId: string, weekNumber: number) => {
+    return schedules.filter(s => s.assetPartId === partId && s.weekNumber === weekNumber);
+  };
+
+  const handleCellClick = (partId: string, field: string, currentValue: any) => {
+    setEditingCell({ partId, field });
+    setEditValue(currentValue?.toString() || '');
+  };
+
+  const handleCellBlur = async () => {
+    if (!editingCell) return;
+    const { partId, field } = editingCell;
+    const part = parts.find(p => p.id === partId);
+    if (!part) return;
+
+    const currentValue = (part as any)[field];
+    if (currentValue?.toString() === editValue) {
+      setEditingCell(null);
+      return;
+    }
+
+    let valueToSave: any = editValue;
+    if (field === 'smpNumber' || field === 'qaMatrixNo' || field === 'qmMatrixNo' || field === 'maintenanceTimeMinutes') {
+      valueToSave = editValue ? parseInt(editValue) : null;
+    }
+
+    try {
+      setSaving(true);
+      await api.patch(`/assets/parts/${partId}`, { [field]: valueToSave || null });
+      if (onDataChange) onDataChange();
+      setEditingCell(null);
+    } catch (error: any) {
+      alert(`Failed to save: ${error.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleCellBlur();
+    else if (e.key === 'Escape') setEditingCell(null);
+  };
+
+  const renderEditableCell = (part: AssetPart, field: keyof AssetPart, value: any, className: string = '', bgClass: string = '') => {
+    const isEditing = editingCell?.partId === part.id && editingCell?.field === field;
+    const displayValue = value || '-';
+
+    if (isEditing) {
+      return (
+        <td className={`border border-gray-300 px-1 py-1 ${bgClass}`}>
+          <input
+            type="text"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={handleCellBlur}
+            onKeyDown={handleKeyDown}
+            autoFocus
+            className={`w-full px-1 py-1 text-xs text-gray-900 border-2 border-blue-500 rounded focus:outline-none ${className}`}
+            disabled={saving}
+          />
+        </td>
+      );
+    }
+
+    return (
+      <td
+        className={`border border-gray-300 px-2 py-2 cursor-pointer hover:bg-yellow-100 ${className} ${bgClass}`}
+        onClick={() => handleCellClick(part.id, field, value)}
+        title="Click to edit"
+      >
+        <span className="text-gray-900">{displayValue}</span>
+      </td>
+    );
+  };
+
+  const renderClassificationCell = (part: AssetPart) => {
+    const isEditing = editingCell?.partId === part.id && editingCell?.field === 'componentClassification';
+
+    if (isEditing) {
+      return (
+        <td className="border border-gray-300 px-1 py-1 text-center">
+          <select
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={handleCellBlur}
+            onKeyDown={handleKeyDown}
+            autoFocus
+            className="w-full px-1 py-1 text-xs text-gray-900 border-2 border-blue-500 rounded focus:outline-none"
+            disabled={saving}
+          >
+            <option value="">-</option>
+            <option value="Critical">A - Critical</option>
+            <option value="Important">B - Important</option>
+            <option value="Standard">C - Standard</option>
+          </select>
+        </td>
+      );
+    }
+
+    return (
+      <td
+        className="border border-gray-300 px-2 py-2 text-center cursor-pointer hover:bg-yellow-100"
+        onClick={() => handleCellClick(part.id, 'componentClassification', part.componentClassification)}
+        title="Click to edit"
+      >
+        {getClassificationBadge(part.componentClassification)}
+      </td>
     );
   };
 
@@ -74,7 +220,7 @@ export default function WCMLedgerGrid({ asset, parts, year = new Date().getFullY
           <thead>
             {/* Section Headers */}
             <tr className="bg-blue-900 text-white">
-              <th colSpan={9} className="border border-gray-300 px-2 py-2 text-center font-bold">
+              <th colSpan={10} className="border border-gray-300 px-2 py-2 text-center font-bold">
                 COMPONENT INFORMATION
               </th>
               <th colSpan={5} className="border border-blue-400 px-2 py-2 text-center font-bold bg-blue-800">
@@ -98,6 +244,7 @@ export default function WCMLedgerGrid({ asset, parts, year = new Date().getFullY
             <tr className="bg-blue-800 text-white text-xs">
               {/* Component Info */}
               <th className="border border-gray-300 px-2 py-2 sticky left-0 bg-blue-800 z-10" style={{minWidth: '40px'}}>No.</th>
+              <th className="border border-gray-300 px-2 py-2" style={{minWidth: '60px'}}>Image</th>
               <th className="border border-gray-300 px-2 py-2" style={{minWidth: '100px'}}>Component No.</th>
               <th className="border border-gray-300 px-2 py-2" style={{minWidth: '120px'}}>Component Name</th>
               <th className="border border-gray-300 px-2 py-2" style={{minWidth: '80px'}}>Part No.</th>
@@ -164,79 +311,71 @@ export default function WCMLedgerGrid({ asset, parts, year = new Date().getFullY
               parts.map((part, index) => (
                 <tr key={part.id} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
                   {/* Component Info */}
-                  <td className="border border-gray-300 px-2 py-2 text-center font-semibold sticky left-0 bg-inherit z-10">
+                  <td className="border border-gray-300 px-2 py-2 text-center font-semibold text-gray-900 sticky left-0 bg-inherit z-10">
                     {index + 1}
                   </td>
-                  <td className="border border-gray-300 px-2 py-2 font-mono text-blue-700">{part.partNumber}</td>
-                  <td className="border border-gray-300 px-2 py-2 font-semibold">{part.partName}</td>
-                  <td className="border border-gray-300 px-2 py-2 font-mono text-xs">{part.sapNumber || '-'}</td>
-                  <td className="border border-gray-300 px-2 py-2 text-xs">{part.storeroomLocation || '-'}</td>
-                  <td className="border border-gray-300 px-2 py-2 text-xs">{part.vendor || '-'}</td>
-                  <td className="border border-gray-300 px-2 py-2 text-center">
-                    {getClassificationBadge(part.componentClassification)}
+                  <td className="border border-gray-300 px-1 py-1 text-center">
+                    <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center overflow-hidden">
+                      <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
                   </td>
+                  <td className="border border-gray-300 px-2 py-2 font-mono text-blue-700">{part.partNumber}</td>
+                  <td className="border border-gray-300 px-2 py-2 font-semibold text-gray-900">{part.partName}</td>
+                  {renderEditableCell(part, 'sapNumber', part.sapNumber, 'font-mono text-xs')}
+                  {renderEditableCell(part, 'storeroomLocation', part.storeroomLocation, 'text-xs')}
+                  {renderEditableCell(part, 'vendor', part.vendor, 'text-xs')}
+                  {renderClassificationCell(part)}
 
                   {/* PM Fields */}
-                  <td className="border border-blue-400 px-2 py-2 text-center bg-blue-50">
-                    {part.pmType || '-'}
-                  </td>
-                  <td className="border border-blue-400 px-2 py-2 text-center bg-blue-50">
-                    {part.smpNumber || '-'}
-                  </td>
-                  <td className="border border-blue-400 px-2 py-2 text-center bg-blue-50">
-                    {part.frequencyPM || '-'}
-                  </td>
-                  <td className="border border-blue-400 px-2 py-2 text-center font-semibold bg-blue-50">
-                    {part.maintenanceTimeMinutes || '-'}
-                  </td>
-                  <td className="border border-blue-400 px-2 py-2 text-center text-xs bg-blue-50">
-                    {part.machineStopRequired || '-'}
-                  </td>
+                  {renderEditableCell(part, 'pmType', part.pmType, 'text-center', 'bg-blue-50')}
+                  {renderEditableCell(part, 'smpNumber', part.smpNumber, 'text-center', 'bg-blue-50')}
+                  {renderEditableCell(part, 'frequencyPM', part.frequencyPM, 'text-center', 'bg-blue-50')}
+                  {renderEditableCell(part, 'maintenanceTimeMinutes', part.maintenanceTimeMinutes, 'text-center font-semibold', 'bg-blue-50')}
+                  {renderEditableCell(part, 'machineStopRequired', part.machineStopRequired, 'text-center text-xs', 'bg-blue-50')}
 
                   {/* AM Fields */}
-                  <td className="border border-green-400 px-2 py-2 text-center text-xs bg-green-50">
-                    {part.inspectionStandard || '-'}
-                  </td>
-                  <td className="border border-green-400 px-2 py-2 text-center bg-green-50">
-                    {part.frequencyAM || '-'}
-                  </td>
+                  {renderEditableCell(part, 'inspectionStandard', part.inspectionStandard, 'text-center text-xs', 'bg-green-50')}
+                  {renderEditableCell(part, 'frequencyAM', part.frequencyAM, 'text-center', 'bg-green-50')}
 
                   {/* QM Fields */}
-                  <td className="border border-purple-400 px-2 py-2 text-center bg-purple-50">
-                    {part.qaMatrixNo || '-'}
-                  </td>
-                  <td className="border border-purple-400 px-2 py-2 text-center bg-purple-50">
-                    {part.qmMatrixNo || '-'}
-                  </td>
+                  {renderEditableCell(part, 'qaMatrixNo', part.qaMatrixNo, 'text-center', 'bg-purple-50')}
+                  {renderEditableCell(part, 'qmMatrixNo', part.qmMatrixNo, 'text-center', 'bg-purple-50')}
 
                   {/* FI/Kaizen Fields */}
-                  <td className="border border-orange-400 px-2 py-2 text-xs bg-orange-50">
-                    {part.kaizenType || '-'}
-                  </td>
-                  <td className="border border-orange-400 px-2 py-2 text-xs bg-orange-50">
-                    {part.kaizenNo || '-'}
-                  </td>
+                  {renderEditableCell(part, 'kaizenType', part.kaizenType, 'text-xs', 'bg-orange-50')}
+                  {renderEditableCell(part, 'kaizenNo', part.kaizenNo, 'text-xs', 'bg-orange-50')}
 
-                  {/* Week Grid Cells */}
-                  {weeks.map((week) => (
-                    <td
-                      key={week}
-                      className={`border border-gray-300 px-1 py-2 text-center cursor-pointer hover:bg-yellow-100 ${
-                        selectedWeek === week ? 'bg-yellow-50' : ''
-                      }`}
-                      title={`Week ${week} - ${part.partName}`}
-                    >
-                      {/* This will show scheduled maintenance indicators */}
-                      {/* For now, show PM indicator based on frequency */}
-                      {part.frequencyPM && week % 4 === 0 ? (
-                        <span className="text-blue-600 font-bold text-xs">PM</span>
-                      ) : part.frequencyAM === '1W' ? (
-                        <span className="text-green-600 text-xs">·</span>
-                      ) : (
-                        ''
-                      )}
-                    </td>
-                  ))}
+                  {/* Week Grid Cells - WCM Triangular Format */}
+                  {weeks.map((week) => {
+                    const cellSchedules = getScheduleForCell(part.id, week);
+                    
+                    // Check for each maintenance type and status
+                    const pmPlanned = cellSchedules.find(s => s.maintenanceType === 'PM' && s.status === 'planned');
+                    const pmExecuted = cellSchedules.find(s => s.maintenanceType === 'PM' && s.status === 'completed');
+                    const breakdown = cellSchedules.find(s => s.status === 'overdue');
+                    const unplanned = cellSchedules.find(s => s.maintenanceType === 'AM');
+                    
+                    return (
+                      <td
+                        key={week}
+                        className={`border border-gray-300 p-0 text-center cursor-pointer hover:opacity-80 ${
+                          selectedWeek === week ? 'ring-2 ring-yellow-400' : ''
+                        }`}
+                        title={`Week ${week}${cellSchedules.length > 0 ? ': ' + cellSchedules.map(s => `${s.maintenanceType} (${s.status})`).join(', ') : ''}`}
+                        style={{ width: '24px', height: '24px' }}
+                      >
+                        <svg width="24" height="24" viewBox="0 0 20 20" className="mx-auto" style={{ transform: 'rotate(45deg)' }}>
+                          <path d="M10 0 L20 10 L10 10 Z" fill={breakdown ? '#dc2626' : '#f3f4f6'} />
+                          <path d="M20 10 L10 20 L10 10 Z" fill={pmPlanned ? '#fbbf24' : '#f3f4f6'} />
+                          <path d="M10 20 L0 10 L10 10 Z" fill={unplanned ? '#3b82f6' : '#f3f4f6'} />
+                          <path d="M0 10 L10 0 L10 10 Z" fill={pmExecuted ? '#000000' : '#f3f4f6'} />
+                          <path d="M10 0 L20 10 L10 20 L0 10 Z" fill="none" stroke="#6b7280" strokeWidth="0.5" />
+                        </svg>
+                      </td>
+                    );
+                  })}
                 </tr>
               ))
             )}
@@ -277,6 +416,49 @@ export default function WCMLedgerGrid({ asset, parts, year = new Date().getFullY
           <div className="flex items-center gap-2">
             <span className="inline-block w-6 h-6 bg-green-600 text-white text-xs font-bold rounded flex items-center justify-center flex-shrink-0">C</span>
             <span className="text-gray-700">Standard Component</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 pt-4 border-t border-gray-200">
+          <div className="flex items-center gap-2">
+            <svg width="20" height="20" viewBox="0 0 20 20" className="flex-shrink-0" style={{ transform: 'rotate(45deg)' }}>
+              <path d="M10 0 L20 10 L10 10 Z" fill="#dc2626" />
+              <path d="M20 10 L10 20 L10 10 Z" fill="#f3f4f6" />
+              <path d="M10 20 L0 10 L10 10 Z" fill="#f3f4f6" />
+              <path d="M0 10 L10 0 L10 10 Z" fill="#f3f4f6" />
+              <path d="M10 0 L20 10 L10 20 L0 10 Z" fill="none" stroke="#6b7280" strokeWidth="0.5" />
+            </svg>
+            <span className="text-gray-700">Breakdown Maintenance</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <svg width="20" height="20" viewBox="0 0 20 20" className="flex-shrink-0" style={{ transform: 'rotate(45deg)' }}>
+              <path d="M10 0 L20 10 L10 10 Z" fill="#f3f4f6" />
+              <path d="M20 10 L10 20 L10 10 Z" fill="#fbbf24" />
+              <path d="M10 20 L0 10 L10 10 Z" fill="#f3f4f6" />
+              <path d="M0 10 L10 0 L10 10 Z" fill="#f3f4f6" />
+              <path d="M10 0 L20 10 L10 20 L0 10 Z" fill="none" stroke="#6b7280" strokeWidth="0.5" />
+            </svg>
+            <span className="text-gray-700">Planned Maintenance</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <svg width="20" height="20" viewBox="0 0 20 20" className="flex-shrink-0" style={{ transform: 'rotate(45deg)' }}>
+              <path d="M10 0 L20 10 L10 10 Z" fill="#f3f4f6" />
+              <path d="M20 10 L10 20 L10 10 Z" fill="#f3f4f6" />
+              <path d="M10 20 L0 10 L10 10 Z" fill="#f3f4f6" />
+              <path d="M0 10 L10 0 L10 10 Z" fill="#000000" />
+              <path d="M10 0 L20 10 L10 20 L0 10 Z" fill="none" stroke="#6b7280" strokeWidth="0.5" />
+            </svg>
+            <span className="text-gray-700">PM Executed</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <svg width="20" height="20" viewBox="0 0 20 20" className="flex-shrink-0" style={{ transform: 'rotate(45deg)' }}>
+              <path d="M10 0 L20 10 L10 10 Z" fill="#f3f4f6" />
+              <path d="M20 10 L10 20 L10 10 Z" fill="#f3f4f6" />
+              <path d="M10 20 L0 10 L10 10 Z" fill="#3b82f6" />
+              <path d="M0 10 L10 0 L10 10 Z" fill="#f3f4f6" />
+              <path d="M10 0 L20 10 L10 20 L0 10 Z" fill="none" stroke="#6b7280" strokeWidth="0.5" />
+            </svg>
+            <span className="text-gray-700">Unplanned Extra Maintenance</span>
           </div>
         </div>
       </div>

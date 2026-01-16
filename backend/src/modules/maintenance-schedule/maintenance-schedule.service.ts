@@ -65,7 +65,8 @@ export class MaintenanceScheduleService {
             year,
             maintenanceType: 'PM',
             status: 'planned',
-            durationMinutes: part.maintenanceTimeMinutes || null,
+            partNumber: part.partNumber,
+            partName: part.partName,
           });
         });
       }
@@ -82,7 +83,8 @@ export class MaintenanceScheduleService {
             year,
             maintenanceType: 'AM',
             status: 'planned',
-            durationMinutes: part.maintenanceTimeMinutes ? Math.floor(part.maintenanceTimeMinutes / 2) : null,
+            partNumber: part.partNumber,
+            partName: part.partName,
           });
         });
       }
@@ -92,8 +94,8 @@ export class MaintenanceScheduleService {
     for (const task of tasksToCreate) {
       await this.db.execute(
         `INSERT INTO MaintenanceSchedule (
-          id, assetPartId, assetId, weekNumber, year, maintenanceType, status, durationMinutes, createdAt, updatedAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+          id, assetPartId, assetId, organizationId, weekNumber, year, maintenanceType, partNumber, partName, status, createdAt, updatedAt
+        ) VALUES (?, ?, ?, 'org-test-1', ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
         [
           task.id,
           task.assetPartId,
@@ -101,8 +103,9 @@ export class MaintenanceScheduleService {
           task.weekNumber,
           task.year,
           task.maintenanceType,
+          task.partNumber,
+          task.partName,
           task.status,
-          task.durationMinutes,
         ]
       );
     }
