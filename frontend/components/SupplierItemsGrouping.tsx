@@ -35,7 +35,7 @@ export default function SupplierItemsGrouping({ isOpen, onClose, items, onGenera
 
       try {
         setLoadingSuppliers(true);
-        const data = await api.getSuppliers(user.organizationId);
+        const data = await api.getSuppliers(user.organizationId) as any[];
         const supplierNames = data.map((s: any) => s.name);
         setSuppliers(supplierNames);
       } catch (error) {
