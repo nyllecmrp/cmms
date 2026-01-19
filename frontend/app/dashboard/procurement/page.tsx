@@ -219,11 +219,11 @@ export default function ProcurementPage() {
 
   const fetchSuppliers = async () => {
     if (!user?.organizationId) return;
-    
+
     try {
       setLoadingSuppliers(true);
       const data = await api.getSuppliers(user.organizationId);
-      setSuppliers(data);
+      setSuppliers(data as any[]);
     } catch (error) {
       console.error('Failed to fetch suppliers:', error);
     } finally {
