@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
+import ItemsModal from '@/components/ItemsModal';
+import SupplierItemsGrouping from '@/components/SupplierItemsGrouping';
+import PODetailsModal from '@/components/PODetailsModal';
 
 interface PurchaseRequest {
   id: string;
@@ -91,7 +94,7 @@ interface PurchaseOrder {
 
 export default function ProcurementPage() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'purchase-requests' | 'purchase-orders'>('purchase-requests');
+  const [activeTab, setActiveTab] = useState<'purchase-requests' | 'purchase-orders' | 'suppliers'>('purchase-requests');
   const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequest[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [stats, setStats] = useState<Stats>({ total: 0, pending: 0, approved: 0, purchased: 0, totalSpent: 0 });
@@ -99,6 +102,15 @@ export default function ProcurementPage() {
   const [showPOModal, setShowPOModal] = useState(false);
   const [selectedPR, setSelectedPR] = useState<PurchaseRequest | null>(null);
   const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
+  const [showItemsModal, setShowItemsModal] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<any[]>([]);
+  const [itemsModalTitle, setItemsModalTitle] = useState('');
+  const [itemsModalAdditionalInfo, setItemsModalAdditionalInfo] = useState<any>(null);
+  const [showSupplierGrouping, setShowSupplierGrouping] = useState(false);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [loadingSuppliers, setLoadingSuppliers] = useState(false);
+  const [showPODetailsModal, setShowPODetailsModal] = useState(false);
+  const [selectedPOForDetails, setSelectedPOForDetails] = useState<PurchaseOrder | null>(null);
   const [poFormData, setPoFormData] = useState({
     supplierName: '',
     supplierEmail: '',
@@ -137,6 +149,12 @@ export default function ProcurementPage() {
 
     fetchData();
   }, [user?.organizationId]);
+
+  useEffect(() => {
+    if (activeTab === 'suppliers') {
+      fetchSuppliers();
+    }
+  }, [activeTab]);
 
   const fetchPurchaseOrders = async () => {
     if (!user?.organizationId) return;
@@ -198,9 +216,72 @@ export default function ProcurementPage() {
     }
   };
 
+
+  const fetchSuppliers = async () => {
+    if (!user?.organizationId) return;
+    
+    try {
+      setLoadingSuppliers(true);
+      const data = await api.getSuppliers(user.organizationId);
+      setSuppliers(data);
+    } catch (error) {
+      console.error('Failed to fetch suppliers:', error);
+    } finally {
+      setLoadingSuppliers(false);
+    }
+  };
+
   const handleGeneratePO = (pr: PurchaseRequest) => {
     setSelectedPR(pr);
-    setShowPOModal(true);
+    setShowSupplierGrouping(true);
+  };
+
+  const handleGenerateGroupedPOs = async (groupedItems: { [supplier: string]: any[] }) => {
+    if (!user?.id || !user?.organizationId || !selectedPR) return;
+
+    try {
+      let successCount = 0;
+      const suppliers = Object.keys(groupedItems);
+
+      for (const supplier of suppliers) {
+        const items = groupedItems[supplier];
+        const subtotal = items.reduce((sum: number, item: any) =>
+          sum + ((item.estimatedCost || item.price || 0) * (item.quantity || 1)), 0);
+        const tax = subtotal * 0.12;
+        const totalCost = subtotal + tax;
+
+        await api.createPurchaseOrder({
+          organizationId: user.organizationId,
+          purchaseRequestId: selectedPR.id,
+          supplierName: supplier,
+          supplierContact: '',
+          supplierEmail: '',
+          supplierAddress: '',
+          items: JSON.stringify(items),
+          subtotal: subtotal,
+          tax: tax,
+          shippingCost: 0,
+          totalCost: totalCost,
+          orderDate: new Date().toISOString().split('T')[0],
+          expectedDelivery: '',
+          notes: `Auto-generated from PR ${selectedPR.requestNumber}`,
+          termsAndConditions: 'Standard terms and conditions apply.',
+          paymentTerms: '30 days',
+          shippingMethod: 'Standard',
+          createdById: user.id,
+        });
+
+        successCount++;
+      }
+
+      alert(`Successfully created ${successCount} Purchase Order(s) for ${successCount} supplier(s)`);
+      setShowSupplierGrouping(false);
+      setSelectedPR(null);
+      await fetchPurchaseOrders();
+    } catch (error: any) {
+      console.error('Failed to create POs:', error);
+      alert(`Failed to create POs: ${error.message}`);
+    }
   };
 
   const handleCreatePO = async () => {
@@ -375,6 +456,7 @@ export default function ProcurementPage() {
             {[
               { id: 'purchase-requests', name: 'Purchase Requests', icon: '📋' },
               { id: 'purchase-orders', name: 'Purchase Orders', icon: '🛒' },
+              { id: 'suppliers', name: 'Suppliers', icon: '🏢' },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -507,7 +589,14 @@ export default function ProcurementPage() {
                               )}
                               <button
                                 onClick={() => {
-                                  alert(`Items:\n${items.map((item: any) => `- ${item.name} (Qty: ${item.quantity}, Cost: ₱${item.estimatedCost || item.price || 0})`).join('\n')}`);
+                                  setSelectedItems(items);
+                                  setItemsModalTitle(`Items for ${request.requestNumber}`);
+                                  setItemsModalAdditionalInfo({
+                                    title: request.title,
+                                    requestNumber: request.requestNumber,
+                                    estimatedCost: request.estimatedCost,
+                                  });
+                                  setShowItemsModal(true);
                                 }}
                                 className="text-gray-600 hover:text-gray-800"
                               >
@@ -517,6 +606,82 @@ export default function ProcurementPage() {
                           </tr>
                         );
                       })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+
+          {activeTab === 'suppliers' && (
+            <div>
+              {loadingSuppliers ? (
+                <div className="text-center py-8 text-gray-500">Loading suppliers...</div>
+              ) : suppliers.length === 0 ? (
+                <div className="bg-gray-50 rounded-lg p-8 text-center">
+                  <div className="text-6xl mb-4">🏢</div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Suppliers Yet</h3>
+                  <p className="text-gray-600 mb-4">
+                    Add suppliers to streamline your purchase order generation process.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Supplier Name</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact Person</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment Terms</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rating</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {suppliers.map((supplier: any) => (
+                        <tr key={supplier.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div className="text-sm font-medium text-gray-900">{supplier.name}</div>
+                            {supplier.city && (
+                              <div className="text-xs text-gray-500">{supplier.city}</div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm text-gray-600">{supplier.contactPerson || '-'}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm text-gray-600">{supplier.email || '-'}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm text-gray-600">{supplier.phone || '-'}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm text-gray-600">{supplier.supplierType || '-'}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm text-gray-600">{supplier.paymentTerms || '-'}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center">
+                              {supplier.rating && Array.from({ length: 5 }).map((_, i) => (
+                                <span key={i} className={i < supplier.rating ? 'text-yellow-400' : 'text-gray-300'}>⭐</span>
+                              ))}
+                              {!supplier.rating && <span className="text-sm text-gray-400">No rating</span>}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                              supplier.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {supplier.status || 'active'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -637,7 +802,8 @@ export default function ProcurementPage() {
                               )}
                               <button
                                 onClick={() => {
-                                  alert(`Items:\n${items.map((item: any) => `- ${item.name} (Qty: ${item.quantity}, Cost: ₱${item.estimatedCost || item.price || 0})`).join('\n')}\n\nSupplier: ${po.supplierName}\nContact: ${po.supplierContact || 'N/A'}\nEmail: ${po.supplierEmail || 'N/A'}\nPayment Terms: ${po.paymentTerms || 'N/A'}\nShipping Method: ${po.shippingMethod || 'N/A'}\nNotes: ${po.notes || 'N/A'}`);
+                                  setSelectedPOForDetails(po);
+                                  setShowPODetailsModal(true);
                                 }}
                                 className="text-gray-600 hover:text-gray-800"
                               >
@@ -916,6 +1082,39 @@ export default function ProcurementPage() {
             </div>
           </div>
         </div>
+      )}
+      {/* Supplier Items Grouping Modal */}
+      {showSupplierGrouping && selectedPR && (
+        <SupplierItemsGrouping
+          isOpen={showSupplierGrouping}
+          onClose={() => {
+            setShowSupplierGrouping(false);
+            setSelectedPR(null);
+          }}
+          items={JSON.parse(selectedPR.items || '[]')}
+          onGeneratePOs={handleGenerateGroupedPOs}
+        />
+      )}
+
+      {/* Items Modal */}
+      <ItemsModal
+        isOpen={showItemsModal}
+        onClose={() => setShowItemsModal(false)}
+        title={itemsModalTitle}
+        items={selectedItems}
+        additionalInfo={itemsModalAdditionalInfo}
+      />
+
+      {/* PO Details Modal */}
+      {selectedPOForDetails && (
+        <PODetailsModal
+          isOpen={showPODetailsModal}
+          onClose={() => {
+            setShowPODetailsModal(false);
+            setSelectedPOForDetails(null);
+          }}
+          po={selectedPOForDetails}
+        />
       )}
     </div>
   );

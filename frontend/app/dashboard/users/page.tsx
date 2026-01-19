@@ -204,7 +204,7 @@ export default function UsersPage() {
         <div className="bg-white rounded-lg shadow p-4">
           <div className="text-sm text-gray-600">Admins</div>
           <div className="text-2xl font-bold text-purple-600">
-            {users.filter(u => u.role === 'Admin').length}
+            {users.filter(u => u.roleId === 'admin').length}
           </div>
         </div>
       </div>

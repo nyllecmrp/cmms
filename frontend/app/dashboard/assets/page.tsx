@@ -16,6 +16,7 @@ interface Asset {
   name: string;
   category: string;
   status: string;
+  powerState?: 'on' | 'off';
   manufacturer?: string;
   model?: string;
   serialNumber?: string;
@@ -27,6 +28,7 @@ export default function AssetsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -71,6 +73,7 @@ export default function AssetsPage() {
             name: 'Hydraulic Pump Unit A',
             category: 'Equipment',
             status: 'operational',
+            powerState: 'on',
           },
           {
             id: '2',
@@ -78,6 +81,7 @@ export default function AssetsPage() {
             name: 'CT Scanner - Radiology',
             category: 'Equipment',
             status: 'operational',
+            powerState: 'on',
           },
         ]);
       }
@@ -86,10 +90,16 @@ export default function AssetsPage() {
     fetchAssets();
   }, []);
 
-  const filteredAssets = assets.filter((asset) =>
-    asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    asset.assetNumber.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredAssets = assets.filter((asset) => {
+    const matchesSearch = asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          asset.assetNumber.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || asset.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const getPowerStateColor = (powerState?: string) => {
+    return powerState === 'on' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -187,6 +197,32 @@ export default function AssetsPage() {
         </div>
 
       {/* Search and Filters */}
+      {/* Stats */}
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="text-sm text-gray-600">Total Assets</div>
+          <div className="text-2xl font-bold text-gray-900">{assets.length}</div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="text-sm text-gray-600">Operational</div>
+          <div className="text-2xl font-bold text-green-600">
+            {assets.filter(a => a.status === 'operational').length}
+          </div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="text-sm text-gray-600">Under Maintenance</div>
+          <div className="text-2xl font-bold text-yellow-600">
+            {assets.filter(a => a.status === 'maintenance').length}
+          </div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="text-sm text-gray-600">Down</div>
+          <div className="text-2xl font-bold text-red-600">
+            {assets.filter(a => a.status === 'down').length}
+          </div>
+        </div>
+      </div>
+
       <div className="bg-white rounded-lg shadow p-4 mb-6">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
@@ -198,11 +234,11 @@ export default function AssetsPage() {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
             />
           </div>
-          <select className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900">
-            <option>All Status</option>
-            <option>Operational</option>
-            <option>Down</option>
-            <option>Maintenance</option>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900">
+            <option value="all">All Status</option>
+            <option value="operational">Operational</option>
+            <option value="down">Down</option>
+            <option value="maintenance">Maintenance</option>
           </select>
         </div>
       </div>
@@ -240,6 +276,9 @@ export default function AssetsPage() {
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Power State
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -256,6 +295,11 @@ export default function AssetsPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(asset.status)}`}>
                         {asset.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPowerStateColor(asset.powerState)}`}>
+                        {asset.powerState || 'off'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -308,31 +352,6 @@ export default function AssetsPage() {
         )}
       </div>
 
-      {/* Stats Footer */}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-600">Total Assets</div>
-          <div className="text-2xl font-bold text-gray-900">{assets.length}</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-600">Operational</div>
-          <div className="text-2xl font-bold text-green-600">
-            {assets.filter(a => a.status === 'operational').length}
-          </div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-600">Under Maintenance</div>
-          <div className="text-2xl font-bold text-yellow-600">
-            {assets.filter(a => a.status === 'maintenance').length}
-          </div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-600">Down</div>
-          <div className="text-2xl font-bold text-red-600">
-            {assets.filter(a => a.status === 'down').length}
-          </div>
-        </div>
-      </div>
 
         <AssetForm
           isOpen={isFormOpen}

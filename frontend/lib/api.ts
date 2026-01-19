@@ -950,6 +950,51 @@ class ApiClient {
     return this.request(`/inventory/alerts?resolved=${resolved}`);
   }
 
+
+  // Suppliers
+  async getSuppliers(organizationId: string) {
+    return this.request(`/suppliers/${organizationId}`, {
+      method: 'GET',
+    });
+  }
+
+  async createSupplier(data: {
+    organizationId: string;
+    createdById: string;
+    name: string;
+    contactPerson?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    country?: string;
+    website?: string;
+    taxId?: string;
+    paymentTerms?: string;
+    supplierType?: string;
+    status?: string;
+    rating?: number;
+    notes?: string;
+  }) {
+    return this.request('/suppliers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateSupplier(id: string, data: any) {
+    return this.request(`/suppliers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteSupplier(id: string) {
+    return this.request(`/suppliers/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
 }
 
 export const api = new ApiClient(API_BASE_URL);

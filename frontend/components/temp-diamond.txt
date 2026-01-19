@@ -1,0 +1,9 @@
+                      >
+                        <svg width="24" height="24" viewBox="0 0 24 24" className="mx-auto">
+                          <path d="M12 2 L22 12 L12 12 Z" fill={pmExecuted ? '#2563eb' : '#f3f4f6'} />
+                          <path d="M22 12 L12 22 L12 12 Z" fill={breakdown ? '#dc2626' : '#f3f4f6'} />
+                          <path d="M12 22 L2 12 L12 12 Z" fill={pmPlanned ? '#facc15' : '#f3f4f6'} />
+                          <path d="M2 12 L12 2 L12 12 Z" fill={unplanned ? '#9ca3af' : '#f3f4f6'} />
+                          <path d="M12 2 L22 12 L12 22 L2 12 Z" fill="none" stroke="#d1d5db" strokeWidth="0.5" />
+                        </svg>
+                      </td>

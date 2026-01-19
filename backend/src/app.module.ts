@@ -16,6 +16,7 @@ import { LocationsModule } from './modules/locations/locations.module';
 import { PMSchedulesModule } from './modules/pm-schedules/pm-schedules.module';
 import { PurchaseRequestsModule } from './modules/purchase-requests/purchase-requests.module';
 import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.module';
+import { SuppliersModule } from './modules/suppliers/suppliers.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
@@ -45,6 +46,7 @@ import { MaintenanceScheduleModule } from './modules/maintenance-schedule/mainte
     PMSchedulesModule,
     PurchaseRequestsModule,
     PurchaseOrdersModule,
+    SuppliersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

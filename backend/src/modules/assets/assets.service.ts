@@ -580,6 +580,7 @@ export class AssetsService {
       warrantyExpiresAt: row.warrantyExpiresAt,
       status: row.status,
       criticality: row.criticality,
+      powerState: row.powerState,
       locationId: row.locationId,
       parentAssetId: row.parentAssetId,
       imageUrl: row.imageUrl,

@@ -1,0 +1,107 @@
+
+  const handleCellClick = (partId: string, field: string, currentValue: any) => {
+    setEditingCell({ partId, field });
+    setEditValue(currentValue?.toString() || '');
+  };
+
+  const handleCellBlur = async () => {
+    if (!editingCell) return;
+    const { partId, field } = editingCell;
+    const part = parts.find(p => p.id === partId);
+    if (!part) return;
+
+    const currentValue = (part as any)[field];
+    if (currentValue?.toString() === editValue) {
+      setEditingCell(null);
+      return;
+    }
+
+    let valueToSave: any = editValue;
+    if (field === 'smpNumber' || field === 'qaMatrixNo' || field === 'qmMatrixNo' || field === 'maintenanceTimeMinutes') {
+      valueToSave = editValue ? parseInt(editValue) : null;
+    }
+
+    try {
+      setSaving(true);
+      await api.patch(\`/assets/parts/\${partId}\`, { [field]: valueToSave || null });
+      if (onDataChange) onDataChange();
+      setEditingCell(null);
+    } catch (error: any) {
+      alert(\`Failed to save: \${error.message}\`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleCellBlur();
+    else if (e.key === 'Escape') setEditingCell(null);
+  };
+
+  const renderEditableCell = (part: AssetPart, field: keyof AssetPart, value: any, className: string = '', bgClass: string = '') => {
+    const isEditing = editingCell?.partId === part.id && editingCell?.field === field;
+    const displayValue = value || '-';
+
+    if (isEditing) {
+      return (
+        <td className={\`border border-gray-300 px-1 py-1 \${bgClass}\`}>
+          <input
+            type="text"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={handleCellBlur}
+            onKeyDown={handleKeyDown}
+            autoFocus
+            className={\`w-full px-1 py-1 text-xs border-2 border-blue-500 rounded focus:outline-none \${className}\`}
+            disabled={saving}
+          />
+        </td>
+      );
+    }
+
+    return (
+      <td
+        className={\`border border-gray-300 px-2 py-2 cursor-pointer hover:bg-yellow-100 \${className} \${bgClass}\`}
+        onClick={() => handleCellClick(part.id, field, value)}
+        title="Click to edit"
+      >
+        {displayValue}
+      </td>
+    );
+  };
+
+  const renderClassificationCell = (part: AssetPart) => {
+    const isEditing = editingCell?.partId === part.id && editingCell?.field === 'componentClassification';
+
+    if (isEditing) {
+      return (
+        <td className="border border-gray-300 px-1 py-1 text-center">
+          <select
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={handleCellBlur}
+            onKeyDown={handleKeyDown}
+            autoFocus
+            className="w-full px-1 py-1 text-xs border-2 border-blue-500 rounded focus:outline-none"
+            disabled={saving}
+          >
+            <option value="">-</option>
+            <option value="Critical">A - Critical</option>
+            <option value="Important">B - Important</option>
+            <option value="Standard">C - Standard</option>
+          </select>
+        </td>
+      );
+    }
+
+    return (
+      <td
+        className="border border-gray-300 px-2 py-2 text-center cursor-pointer hover:bg-yellow-100"
+        onClick={() => handleCellClick(part.id, 'componentClassification', part.componentClassification)}
+        title="Click to edit"
+      >
+        {getClassificationBadge(part.componentClassification)}
+      </td>
+    );
+  };
+

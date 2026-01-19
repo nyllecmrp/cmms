@@ -241,33 +241,6 @@ export default function ModulesPage() {
                 </ul>
               </div>
 
-              {module.dependencies && module.dependencies.length > 0 && (
-                <div className="mb-4">
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                    <p className="text-sm font-medium text-amber-800 mb-1">
-                      ⚠️ Requires:
-                    </p>
-                    <p className="text-xs text-amber-700">
-                      {module.dependencies.map(dep => {
-                        const depModule = AVAILABLE_MODULES.find(m => m.code === dep);
-                        return depModule?.name || dep;
-                      }).join(', ')}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <div className="mb-4">
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                  <p className="text-sm font-medium text-yellow-800">
-                    💡 Pricing Coming Soon
-                  </p>
-                  <p className="text-xs text-yellow-700 mt-1">
-                    Contact us for custom pricing
-                  </p>
-                </div>
-              </div>
-
               {isActive ? (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
                   <p className="text-green-800 font-semibold">✓ Module Active</p>

@@ -204,6 +204,31 @@ export default function PreventiveMaintenancePage() {
     }
   }, [showAddModal, user?.organizationId]);
 
+  // Auto-populate parts when asset is selected
+  useEffect(() => {
+    const fetchAssetParts = async () => {
+      if (selectedAsset?.id) {
+        try {
+          const assetParts = await api.get(`/assets/${selectedAsset.id}/parts`);
+
+          if (Array.isArray(assetParts) && assetParts.length > 0) {
+            // Map asset parts to PM parts format with part number and classification
+            const mappedParts = assetParts.map((part: any) => ({
+              name: `${part.partNumber || ''} - ${part.partName || part.name || ''}${part.componentClassification ? ` (${part.componentClassification})` : ''}`,
+              quantity: '1',
+              estimatedCost: '0'
+            }));
+            setParts(mappedParts);
+          }
+        } catch (error) {
+          console.error('Failed to fetch asset parts:', error);
+        }
+      }
+    };
+
+    fetchAssetParts();
+  }, [selectedAsset]);
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1386,58 +1411,83 @@ export default function PreventiveMaintenancePage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
                       Parts Required
                       <span className="text-xs text-gray-500 font-normal ml-1">(Optional - triggers Purchase Request)</span>
                     </label>
 
-                    {parts.map((part, index) => (
-                      <div key={index} className="flex gap-2 mb-2">
-                        <input
-                          type="text"
-                          placeholder="Part name"
-                          value={part.name}
-                          onChange={(e) => {
-                            const newParts = [...parts];
-                            newParts[index].name = e.target.value;
-                            setParts(newParts);
-                          }}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
-                        />
-                        <input
-                          type="number"
-                          placeholder="Qty"
-                          value={part.quantity}
-                          onChange={(e) => {
-                            const newParts = [...parts];
-                            newParts[index].quantity = e.target.value;
-                            setParts(newParts);
-                          }}
-                          className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
-                        />
-                        <div className="relative w-28">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₱</span>
-                          <input
-                            type="number"
-                            placeholder="Cost"
-                            value={part.estimatedCost}
-                            onChange={(e) => {
-                              const newParts = [...parts];
-                              newParts[index].estimatedCost = e.target.value;
-                              setParts(newParts);
-                            }}
-                            className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setParts(parts.filter((_, i) => i !== index))}
-                          className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                        >
-                          ✕
-                        </button>
+                    {parts.length > 0 && (
+                      <div className="mb-3 overflow-x-auto border border-gray-200 rounded-lg">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Part Number & Name</th>
+                              <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600">Qty</th>
+                              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">Est. Cost</th>
+                              <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600"></th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {parts.map((part, index) => (
+                              <tr key={index} className="hover:bg-gray-50">
+                                <td className="px-3 py-2">
+                                  <input
+                                    type="text"
+                                    placeholder="Part number - Part name (Classification)"
+                                    value={part.name}
+                                    onChange={(e) => {
+                                      const newParts = [...parts];
+                                      newParts[index].name = e.target.value;
+                                      setParts(newParts);
+                                    }}
+                                    className="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-gray-900 text-sm"
+                                  />
+                                </td>
+                                <td className="px-3 py-2">
+                                  <input
+                                    type="number"
+                                    placeholder="1"
+                                    value={part.quantity}
+                                    onChange={(e) => {
+                                      const newParts = [...parts];
+                                      newParts[index].quantity = e.target.value;
+                                      setParts(newParts);
+                                    }}
+                                    className="w-16 px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-gray-900 text-sm text-center"
+                                  />
+                                </td>
+                                <td className="px-3 py-2">
+                                  <div className="relative">
+                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₱</span>
+                                    <input
+                                      type="number"
+                                      placeholder="0.00"
+                                      value={part.estimatedCost}
+                                      onChange={(e) => {
+                                        const newParts = [...parts];
+                                        newParts[index].estimatedCost = e.target.value;
+                                        setParts(newParts);
+                                      }}
+                                      className="w-28 pl-6 pr-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-gray-900 text-sm text-right"
+                                    />
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => setParts(parts.filter((_, i) => i !== index))}
+                                    className="px-2 py-1 text-red-600 hover:bg-red-50 rounded transition text-sm"
+                                    title="Remove part"
+                                  >
+                                    ✕
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
-                    ))}
+                    )}
 
                     <button
                       type="button"
