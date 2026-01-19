@@ -241,14 +241,18 @@ export default function ProcurementPage() {
 
     try {
       let successCount = 0;
+      let totalActualCost = 0;
       const suppliers = Object.keys(groupedItems);
+      const allUpdatedItems: any[] = [];
 
       for (const supplier of suppliers) {
         const items = groupedItems[supplier];
+        allUpdatedItems.push(...items);
         const subtotal = items.reduce((sum: number, item: any) =>
           sum + ((item.estimatedCost || item.price || 0) * (item.quantity || 1)), 0);
         const tax = subtotal * 0.12;
         const totalCost = subtotal + tax;
+        totalActualCost += totalCost;
 
         await api.createPurchaseOrder({
           organizationId: user.organizationId,
@@ -274,10 +278,22 @@ export default function ProcurementPage() {
         successCount++;
       }
 
+      // Update the Purchase Request with actual costs
+      await api.updatePurchaseRequest(selectedPR.id, {
+        estimatedCost: totalActualCost,
+        items: JSON.stringify(allUpdatedItems)
+      });
+
       alert(`Successfully created ${successCount} Purchase Order(s) for ${successCount} supplier(s)`);
       setShowSupplierGrouping(false);
       setSelectedPR(null);
       await fetchPurchaseOrders();
+
+      // Refresh purchase requests to show updated cost
+      const requestsData = await api.getPurchaseRequests(user.organizationId);
+      setPurchaseRequests(requestsData as PurchaseRequest[]);
+      const statsData = await api.getPurchaseRequestStats(user.organizationId);
+      setStats(statsData as Stats);
     } catch (error: any) {
       console.error('Failed to create POs:', error);
       alert(`Failed to create POs: ${error.message}`);
