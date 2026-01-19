@@ -232,12 +232,26 @@ export class PMSchedulesService {
   }
 
   async remove(id: string) {
-    // Delete associated purchase requests first
-    await this.db.execute('DELETE FROM PurchaseRequest WHERE pmScheduleId = ?', [id]);
+    try {
+      // Delete all related records in the correct order to avoid foreign key constraints
 
-    // Then delete the PM schedule
-    await this.db.execute('DELETE FROM PMSchedule WHERE id = ?', [id]);
-    return { id };
+      // 1. Delete work orders associated with this PM schedule
+      await this.db.execute('DELETE FROM WorkOrder WHERE pmScheduleId = ?', [id]);
+
+      // 2. Delete maintenance schedule entries associated with this PM schedule
+      await this.db.execute('DELETE FROM MaintenanceSchedule WHERE pmScheduleId = ?', [id]);
+
+      // 3. Delete associated purchase requests
+      await this.db.execute('DELETE FROM PurchaseRequest WHERE pmScheduleId = ?', [id]);
+
+      // 4. Finally delete the PM schedule itself
+      await this.db.execute('DELETE FROM PMSchedule WHERE id = ?', [id]);
+
+      return { id };
+    } catch (error) {
+      console.error('Error deleting PM schedule:', error);
+      throw new Error(`Failed to delete PM schedule: ${error.message}`);
+    }
   }
 
   async getStats(organizationId: string) {
