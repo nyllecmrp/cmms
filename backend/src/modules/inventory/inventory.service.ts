@@ -571,4 +571,146 @@ export class InventoryService {
       [organizationId, isResolved ? 1 : 0],
     );
   }
+
+  /**
+   * Check availability of parts for PM schedule
+   * Returns available quantity for each part by part number or name
+   */
+  async checkPartsAvailability(organizationId: string, parts: Array<{ name: string; partNumber?: string; quantity: number }>) {
+    const availability = [];
+
+    for (const part of parts) {
+      // Try to find inventory item by part number first, then by name
+      let inventoryItem;
+
+      if (part.partNumber) {
+        const byPartNumber = await this.db.query(
+          `SELECT * FROM InventoryItem WHERE organizationId = ? AND partNumber = ? AND isActive = 1`,
+          [organizationId, part.partNumber]
+        );
+        inventoryItem = byPartNumber[0];
+      }
+
+      if (!inventoryItem) {
+        const byName = await this.db.query(
+          `SELECT * FROM InventoryItem WHERE organizationId = ? AND name = ? AND isActive = 1`,
+          [organizationId, part.name]
+        );
+        inventoryItem = byName[0];
+      }
+
+      if (!inventoryItem) {
+        // Part not in inventory
+        availability.push({
+          partName: part.name,
+          partNumber: part.partNumber,
+          needed: part.quantity,
+          available: 0,
+          toOrder: part.quantity,
+          inInventory: false,
+          inventoryItemId: null
+        });
+        continue;
+      }
+
+      // Get total available stock across all locations
+      const stockResult = await this.db.query(
+        `SELECT COALESCE(SUM(quantity - reservedQuantity), 0) as availableStock
+         FROM InventoryStock
+         WHERE itemId = ?`,
+        [inventoryItem.id]
+      );
+
+      const availableStock = stockResult[0]?.availableStock || 0;
+      const toOrder = Math.max(0, part.quantity - availableStock);
+
+      availability.push({
+        partName: part.name,
+        partNumber: part.partNumber || inventoryItem.partNumber,
+        needed: part.quantity,
+        available: Math.min(availableStock, part.quantity),
+        toOrder: toOrder,
+        inInventory: true,
+        inventoryItemId: inventoryItem.id,
+        unitCost: inventoryItem.unitCost
+      });
+    }
+
+    return availability;
+  }
+
+  /**
+   * Reserve inventory for PM schedule
+   */
+  async reservePartsForPM(pmScheduleId: string, organizationId: string, parts: Array<{ inventoryItemId: string; quantity: number }>) {
+    for (const part of parts) {
+      if (part.quantity <= 0) continue;
+
+      // Find stock locations with available quantity (FIFO)
+      const stockLocations = await this.db.query(
+        `SELECT id, itemId, locationId, quantity, reservedQuantity
+         FROM InventoryStock
+         WHERE itemId = ? AND (quantity - reservedQuantity) > 0
+         ORDER BY createdAt ASC`,
+        [part.inventoryItemId]
+      );
+
+      let remainingToReserve = part.quantity;
+
+      for (const stock of stockLocations) {
+        if (remainingToReserve <= 0) break;
+
+        const availableInLocation = stock.quantity - stock.reservedQuantity;
+        const toReserve = Math.min(availableInLocation, remainingToReserve);
+
+        // Update reserved quantity
+        await this.db.execute(
+          `UPDATE InventoryStock
+           SET reservedQuantity = reservedQuantity + ?,
+               updatedAt = datetime('now')
+           WHERE id = ?`,
+          [toReserve, stock.id]
+        );
+
+        // Create reservation record
+        await this.db.execute(
+          `INSERT INTO InventoryReservation (id, itemId, locationId, quantity, referenceType, referenceId, createdAt)
+           VALUES (?, ?, ?, ?, 'PMSchedule', ?, datetime('now'))`,
+          [randomUUID(), stock.itemId, stock.locationId, toReserve, pmScheduleId]
+        );
+
+        remainingToReserve -= toReserve;
+      }
+    }
+  }
+
+  /**
+   * Release inventory reservations for PM schedule
+   */
+  async releaseReservationsForPM(pmScheduleId: string) {
+    // Get all reservations for this PM schedule
+    const reservations = await this.db.query(
+      `SELECT * FROM InventoryReservation
+       WHERE referenceType = 'PMSchedule' AND referenceId = ?`,
+      [pmScheduleId]
+    );
+
+    for (const reservation of reservations) {
+      // Decrease reserved quantity in stock
+      await this.db.execute(
+        `UPDATE InventoryStock
+         SET reservedQuantity = reservedQuantity - ?,
+             updatedAt = datetime('now')
+         WHERE itemId = ? AND locationId = ?`,
+        [reservation.quantity, reservation.itemId, reservation.locationId]
+      );
+    }
+
+    // Delete reservation records
+    await this.db.execute(
+      `DELETE FROM InventoryReservation
+       WHERE referenceType = 'PMSchedule' AND referenceId = ?`,
+      [pmScheduleId]
+    );
+  }
 }

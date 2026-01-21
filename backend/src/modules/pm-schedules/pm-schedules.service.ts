@@ -235,16 +235,40 @@ export class PMSchedulesService {
     try {
       // Delete all related records in the correct order to avoid foreign key constraints
 
-      // 1. Delete work orders associated with this PM schedule
+      // 1. Get all inventory reservations for this PM schedule
+      const reservations = await this.db.query(
+        `SELECT itemId, locationId, quantity FROM InventoryReservation
+         WHERE referenceType = 'PMSchedule' AND referenceId = ?`,
+        [id]
+      );
+
+      // 2. Release inventory reservations (decrease reserved quantities)
+      for (const reservation of reservations) {
+        await this.db.execute(
+          `UPDATE InventoryStock
+           SET reservedQuantity = GREATEST(0, reservedQuantity - ?),
+               updatedAt = datetime('now')
+           WHERE itemId = ? AND locationId = ?`,
+          [reservation.quantity, reservation.itemId, reservation.locationId]
+        );
+      }
+
+      // 3. Delete reservation records
+      await this.db.execute(
+        `DELETE FROM InventoryReservation WHERE referenceType = 'PMSchedule' AND referenceId = ?`,
+        [id]
+      );
+
+      // 4. Delete work orders associated with this PM schedule
       await this.db.execute('DELETE FROM WorkOrder WHERE pmScheduleId = ?', [id]);
 
-      // 2. Delete maintenance schedule entries associated with this PM schedule
+      // 5. Delete maintenance schedule entries associated with this PM schedule
       await this.db.execute('DELETE FROM MaintenanceSchedule WHERE pmScheduleId = ?', [id]);
 
-      // 3. Delete associated purchase requests
+      // 6. Delete associated purchase requests
       await this.db.execute('DELETE FROM PurchaseRequest WHERE pmScheduleId = ?', [id]);
 
-      // 4. Finally delete the PM schedule itself
+      // 7. Finally delete the PM schedule itself
       await this.db.execute('DELETE FROM PMSchedule WHERE id = ?', [id]);
 
       return { id };

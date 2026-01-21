@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PurchaseRequestsService } from '../purchase-requests/purchase-requests.service';
+import { InventoryService } from '../inventory/inventory.service';
 
 @Injectable()
 export class PMSchedulesPurchaseService {
-  constructor(private purchaseRequestsService: PurchaseRequestsService) {}
+  constructor(
+    private purchaseRequestsService: PurchaseRequestsService,
+    private inventoryService: InventoryService,
+  ) {}
 
   async createPurchaseRequestForPMSchedule(pmSchedule: any, createdById: string) {
     // Check if PM schedule has parts defined
@@ -19,33 +23,76 @@ export class PMSchedulesPurchaseService {
         return null;
       }
 
-      // Calculate estimated cost if parts have prices
-      let estimatedCost = 0;
       console.log('📦 Parts from PM Schedule:', JSON.stringify(parts, null, 2));
 
-      if (parts.some(part => part.estimatedCost || part.price)) {
-        estimatedCost = parts.reduce((sum, part) => {
-          const quantity = part.quantity || 1;
-          const price = part.estimatedCost || part.price || 0;
-          console.log(`  💰 Part: ${part.name}, Qty: ${quantity}, Price: ${price}, Subtotal: ${quantity * price}`);
-          return sum + (quantity * price);
-        }, 0);
+      // Check inventory availability for each part
+      const availability = await this.inventoryService.checkPartsAvailability(
+        pmSchedule.organizationId,
+        parts.map(p => ({
+          name: p.name,
+          partNumber: p.partNumber,
+          quantity: p.quantity || 1
+        }))
+      );
+
+      console.log('📊 Inventory Availability:', JSON.stringify(availability, null, 2));
+
+      // Reserve parts that are available in inventory
+      const partsToReserve = availability
+        .filter(a => a.inInventory && a.available > 0)
+        .map(a => ({
+          inventoryItemId: a.inventoryItemId,
+          quantity: a.available
+        }));
+
+      if (partsToReserve.length > 0) {
+        await this.inventoryService.reservePartsForPM(pmSchedule.id, pmSchedule.organizationId, partsToReserve);
+        console.log(`✅ Reserved ${partsToReserve.length} parts from inventory`);
       }
+
+      // Only create purchase request for parts that need to be ordered
+      const partsToOrder = availability
+        .filter(a => a.toOrder > 0)
+        .map((a, index) => {
+          const originalPart = parts[index];
+          return {
+            ...originalPart,
+            name: a.partName,
+            partNumber: a.partNumber,
+            quantity: a.toOrder,
+            estimatedCost: a.unitCost || originalPart.estimatedCost || originalPart.price || 0,
+            note: a.inInventory ? `${a.available} available in inventory, ordering ${a.toOrder}` : 'Not in inventory'
+          };
+        });
+
+      // If everything is available in inventory, no purchase request needed
+      if (partsToOrder.length === 0) {
+        console.log('✅ All parts available in inventory - no purchase request needed');
+        return { type: 'inventory_only', reservedParts: partsToReserve.length };
+      }
+
+      // Calculate estimated cost for parts to order
+      const estimatedCost = partsToOrder.reduce((sum, part) => {
+        const quantity = part.quantity || 1;
+        const price = part.estimatedCost || part.price || 0;
+        console.log(`  💰 Part to order: ${part.name}, Qty: ${quantity}, Price: ${price}, Subtotal: ${quantity * price}`);
+        return sum + (quantity * price);
+      }, 0);
 
       console.log(`💵 Total Estimated Cost: ${estimatedCost}`);
 
-      // Create purchase request
+      // Create purchase request only for parts that need ordering
       const purchaseRequest = await this.purchaseRequestsService.create({
         organizationId: pmSchedule.organizationId,
         title: `Parts for PM: ${pmSchedule.name}`,
-        description: `Auto-generated purchase request for preventive maintenance schedule: ${pmSchedule.name}`,
+        description: `Auto-generated purchase request for preventive maintenance schedule: ${pmSchedule.name}. ${partsToReserve.length > 0 ? `(${partsToReserve.length} parts reserved from inventory)` : ''}`,
         priority: pmSchedule.priority || 'medium',
         type: 'parts',
         pmScheduleId: pmSchedule.id,
         assetId: pmSchedule.assetId || undefined,
-        items: JSON.stringify(parts),
+        items: JSON.stringify(partsToOrder),
         estimatedCost: estimatedCost > 0 ? estimatedCost : undefined,
-        notes: `Due date: ${pmSchedule.nextDue}`,
+        notes: `Due date: ${pmSchedule.nextDue}${partsToReserve.length > 0 ? `\n\nReserved from inventory: ${partsToReserve.length} parts` : ''}`,
         requestedById: createdById,
       });
 
