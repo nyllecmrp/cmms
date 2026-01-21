@@ -1,7 +1,7 @@
 const { Database } = require('@sqlitecloud/drivers');
 const { randomUUID } = require('crypto');
 
-const connectionString = process.env.DATABASE_URL || 'sqlitecloud://cplhmmjenz.g6.sqlite.cloud:8860/auth.sqlitecloud?apikey=JiY9bOt3Avwnzj9u01AyGNawuecsRJ9EjYqbRsYqZ4U';
+const connectionString = process.env.DATABASE_URL || 'sqlitecloud://cwv6rvpmdk.g2.sqlite.cloud:8860/my-database-cmms.sqlitecloud?apikey=GFwhrD0kqA8NlZxgejGAPyaVRhwpLq7NCAFbqWQjW24';
 
 async function seedInventoryData() {
   console.log('🌱 Seeding inventory data...\n');
@@ -42,21 +42,29 @@ async function seedInventoryData() {
     }
     console.log(`✅ Created ${categories.length} categories\n`);
 
-    // Create stock locations
-    const locations = [
-      { id: randomUUID(), name: 'Main Warehouse', code: 'WH-MAIN' },
-      { id: randomUUID(), name: 'Production Floor', code: 'PROD-01' },
-      { id: randomUUID(), name: 'Maintenance Shop', code: 'MAINT-01' },
-    ];
+    // Get or create stock locations
+    console.log('📍 Getting/Creating stock locations...');
+    const existingLocations = await db.sql`SELECT * FROM StockLocation WHERE organizationId = ${organizationId}`;
 
-    console.log('📍 Creating stock locations...');
-    for (const location of locations) {
-      await db.sql`
-        INSERT OR IGNORE INTO StockLocation (id, organizationId, name, locationCode, isActive, createdAt, updatedAt)
-        VALUES (${location.id}, ${organizationId}, ${location.name}, ${location.code}, 1, datetime('now'), datetime('now'))
-      `;
+    let locations;
+    if (existingLocations && existingLocations.length > 0) {
+      locations = existingLocations.slice(0, 3);
+      console.log(`✅ Found ${locations.length} existing locations\n`);
+    } else {
+      locations = [
+        { id: randomUUID(), name: 'Main Warehouse' },
+        { id: randomUUID(), name: 'Production Floor' },
+        { id: randomUUID(), name: 'Maintenance Shop' },
+      ];
+
+      for (const location of locations) {
+        await db.sql`
+          INSERT INTO StockLocation (id, organizationId, name, isActive, createdAt, updatedAt)
+          VALUES (${location.id}, ${organizationId}, ${location.name}, 1, datetime('now'), datetime('now'))
+        `;
+      }
+      console.log(`✅ Created ${locations.length} stock locations\n`);
     }
-    console.log(`✅ Created ${locations.length} stock locations\n`);
 
     // Map categories by name for easy lookup
     const categoryMap = {};
@@ -119,28 +127,43 @@ async function seedInventoryData() {
         const mainWarehouseQty = Math.ceil(item.stock * 0.8);
         const prodFloorQty = item.stock - mainWarehouseQty;
 
-        // Main Warehouse stock
-        const stockId1 = randomUUID();
-        await db.sql`
-          INSERT OR IGNORE INTO InventoryStock (
-            id, itemId, locationId, quantity, reservedQuantity, createdAt, updatedAt
-          ) VALUES (
-            ${stockId1}, ${item.itemId}, ${locations[0].id}, ${mainWarehouseQty}, 0,
-            datetime('now'), datetime('now')
-          )
+        // Check if stock record already exists
+        const existingStock = await db.sql`
+          SELECT id FROM InventoryStock
+          WHERE itemId = ${item.itemId} AND locationId = ${locations[0].id}
         `;
 
-        // Production Floor stock
-        if (prodFloorQty > 0) {
-          const stockId2 = randomUUID();
+        if (!existingStock || existingStock.length === 0) {
+          // Main Warehouse stock
+          const stockId1 = randomUUID();
           await db.sql`
-            INSERT OR IGNORE INTO InventoryStock (
-              id, itemId, locationId, quantity, reservedQuantity, createdAt, updatedAt
+            INSERT INTO InventoryStock (
+              id, itemId, locationId, quantity, reservedQuantity, updatedAt
             ) VALUES (
-              ${stockId2}, ${item.itemId}, ${locations[1].id}, ${prodFloorQty}, 0,
-              datetime('now'), datetime('now')
+              ${stockId1}, ${item.itemId}, ${locations[0].id}, ${mainWarehouseQty}, 0,
+              datetime('now')
             )
           `;
+
+          // Production Floor stock
+          if (prodFloorQty > 0 && locations[1]) {
+            const existingStock2 = await db.sql`
+              SELECT id FROM InventoryStock
+              WHERE itemId = ${item.itemId} AND locationId = ${locations[1].id}
+            `;
+
+            if (!existingStock2 || existingStock2.length === 0) {
+              const stockId2 = randomUUID();
+              await db.sql`
+                INSERT INTO InventoryStock (
+                  id, itemId, locationId, quantity, reservedQuantity, updatedAt
+                ) VALUES (
+                  ${stockId2}, ${item.itemId}, ${locations[1].id}, ${prodFloorQty}, 0,
+                  datetime('now')
+                )
+              `;
+            }
+          }
         }
 
         console.log(`  📦 ${item.partNumber}: ${mainWarehouseQty} in warehouse, ${prodFloorQty} on floor`);
