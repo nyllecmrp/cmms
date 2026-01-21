@@ -26,7 +26,7 @@ export class PMSchedulesPurchaseService {
       console.log('📦 Parts from PM Schedule:', JSON.stringify(parts, null, 2));
 
       // Check inventory availability for each part
-      const availability = await this.inventoryService.checkPartsAvailability(
+      const availability: any[] = await this.inventoryService.checkPartsAvailability(
         pmSchedule.organizationId,
         parts.map(p => ({
           name: p.name,
@@ -39,8 +39,8 @@ export class PMSchedulesPurchaseService {
 
       // Reserve parts that are available in inventory
       const partsToReserve = availability
-        .filter(a => a.inInventory && a.available > 0)
-        .map(a => ({
+        .filter((a: any) => a.inInventory && a.available > 0)
+        .map((a: any) => ({
           inventoryItemId: a.inventoryItemId,
           quantity: a.available
         }));
@@ -52,8 +52,8 @@ export class PMSchedulesPurchaseService {
 
       // Only create purchase request for parts that need to be ordered
       const partsToOrder = availability
-        .filter(a => a.toOrder > 0)
-        .map((a, index) => {
+        .filter((a: any) => a.toOrder > 0)
+        .map((a: any, index: number) => {
           const originalPart = parts[index];
           return {
             ...originalPart,

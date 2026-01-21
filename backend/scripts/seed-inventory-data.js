@@ -101,19 +101,30 @@ async function seedInventoryData() {
       const itemId = randomUUID();
       const categoryId = categoryMap[item.category];
 
-      await db.sql`
-        INSERT OR IGNORE INTO InventoryItem (
-          id, organizationId, partNumber, name, categoryId, unitCost, currency,
-          minimumStock, reorderPoint, isActive, createdAt, updatedAt, createdById
-        ) VALUES (
-          ${itemId}, ${organizationId}, ${item.partNumber}, ${item.name}, ${categoryId},
-          ${item.unitCost}, 'PHP', ${item.minStock}, ${item.reorderPoint}, 1,
-          datetime('now'), datetime('now'), ${userId}
-        )
+      // Check if item already exists
+      const existingItem = await db.sql`
+        SELECT id FROM InventoryItem WHERE organizationId = ${organizationId} AND partNumber = ${item.partNumber}
       `;
 
-      createdItems.push({ ...item, itemId });
-      console.log(`  ✅ ${item.partNumber} - ${item.name} (₱${item.unitCost})`);
+      let finalItemId = itemId;
+      if (existingItem && existingItem.length > 0) {
+        finalItemId = existingItem[0].id;
+        console.log(`  ⏭️  ${item.partNumber} already exists, skipping...`);
+      } else {
+        await db.sql`
+          INSERT INTO InventoryItem (
+            id, organizationId, partNumber, name, categoryId, unitCost, currency,
+            minimumStock, reorderPoint, isActive, createdAt, updatedAt, createdById
+          ) VALUES (
+            ${itemId}, ${organizationId}, ${item.partNumber}, ${item.name}, ${categoryId},
+            ${item.unitCost}, 'PHP', ${item.minStock}, ${item.reorderPoint}, 1,
+            datetime('now'), datetime('now'), ${userId}
+          )
+        `;
+        console.log(`  ✅ ${item.partNumber} - ${item.name} (₱${item.unitCost})`);
+      }
+
+      createdItems.push({ ...item, itemId: finalItemId });
     }
     console.log(`✅ Created ${inventoryItems.length} inventory items\n`);
 
@@ -188,12 +199,10 @@ async function seedInventoryData() {
     console.log('4. Tool Changer - 0 in stock (should create full PR)');
     console.log('5. Hydraulic Cylinder - 0 in stock (should create full PR)');
 
-    await db.disconnect();
     console.log('\n✅ Inventory seed completed successfully!');
 
   } catch (error) {
     console.error('❌ Error seeding inventory:', error);
-    await db.disconnect();
     process.exit(1);
   }
 }

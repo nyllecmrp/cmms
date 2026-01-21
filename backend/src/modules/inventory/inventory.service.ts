@@ -577,7 +577,7 @@ export class InventoryService {
    * Returns available quantity for each part by part number or name
    */
   async checkPartsAvailability(organizationId: string, parts: Array<{ name: string; partNumber?: string; quantity: number }>) {
-    const availability = [];
+    const availability: any[] = [];
 
     for (const part of parts) {
       // Try to find inventory item by part number first, then by name
