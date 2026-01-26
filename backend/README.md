@@ -1,99 +1,248 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# CMMS Backend - Module Licensing System
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS backend with Prisma ORM and SQLite database implementing the CMMS Module Licensing Framework.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
-
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
+## 🚀 Quick Start
 
 ```bash
-$ npm install
+# Install dependencies
+npm install
+
+# Run database migrations
+npx prisma migrate dev
+
+# Seed the database with test data
+npm run prisma:seed
+
+# Start development server
+npm run start:dev
 ```
 
-## Compile and run the project
+Server runs at: `http://localhost:3000`
+
+## 📋 Test Credentials
+
+- **Superadmin**: superadmin@cmms.com / admin123
+- **Acme Manufacturing Admin**: admin@acme.com / admin123
+- **Metro Hospital Admin**: admin@metrohospital.ph / admin123
+
+## 🔧 Tech Stack
+
+- **NestJS** - Enterprise-grade Node.js framework
+- **Prisma** - Modern ORM for TypeScript
+- **SQLite** - Local development database
+- **TypeScript** - Type-safe development
+
+## 📊 Database Schema
+
+### Core Tables
+- `Organization` - Multi-tenant organizations
+- `User` - Users with RBAC
+- `Role` - Custom roles and permissions
+
+### Module Licensing
+- `ModuleLicense` - Active module licenses
+- `ModuleUsageTracking` - Usage metrics per module
+- `ModuleAccessLog` - Audit trail of module access
+
+### CMMS Core
+- `Asset` - Equipment and facilities
+- `WorkOrder` - Maintenance tasks
+- `Location` - Asset locations
+
+## 🔐 Module Licensing API
+
+### Get Organization Modules
+```bash
+GET /module-licensing/organization/:organizationId/modules
+```
+
+### Check Module Access
+```bash
+GET /module-licensing/organization/:organizationId/module/:moduleCode/access
+```
+
+### Activate Module (Superadmin)
+```bash
+POST /module-licensing/activate
+{
+  "organizationId": "org-test-1",
+  "moduleCode": "predictive_maintenance",
+  "expiresAt": "2026-12-31",
+  "maxUsers": 50,
+  "activatedById": "user-id"
+}
+```
+
+### Deactivate Module (Superadmin)
+```bash
+DELETE /module-licensing/deactivate
+{
+  "organizationId": "org-test-1",
+  "moduleCode": "predictive_maintenance",
+  "deactivatedById": "user-id"
+}
+```
+
+### Activate Tier Modules (Superadmin)
+```bash
+POST /module-licensing/activate-tier
+{
+  "organizationId": "org-test-1",
+  "tier": "enterprise",
+  "activatedById": "user-id",
+  "expiresAt": "2026-12-31"
+}
+```
+
+### Start Trial
+```bash
+POST /module-licensing/start-trial
+{
+  "organizationId": "org-test-1",
+  "moduleCode": "predictive_maintenance",
+  "userId": "user-id",
+  "days": 30
+}
+```
+
+### Get Usage Statistics
+```bash
+GET /module-licensing/organization/:organizationId/usage?moduleCode=preventive_maintenance
+```
+
+## 🛡️ Module Access Guard
+
+Protect routes with module licensing:
+
+```typescript
+import { RequireModule } from './common/decorators/require-module.decorator';
+import { ModuleAccessGuard } from './common/guards/module-access.guard';
+import { ModuleCode } from './common/constants/modules.constant';
+
+@Controller('predictive-maintenance')
+@UseGuards(ModuleAccessGuard)
+export class PredictiveMaintenanceController {
+
+  @Get()
+  @RequireModule(ModuleCode.PREDICTIVE_MAINTENANCE)
+  async getAll() {
+    // Only accessible if org has predictive_maintenance licensed
+    return [];
+  }
+}
+```
+
+## 📦 Available Modules
+
+### Core (Always Enabled)
+- User Management
+- Asset Management (Basic)
+- Work Order Management (Basic)
+- Mobile Application (Basic)
+- Basic Reporting
+
+### Standard Tier
+- Preventive Maintenance
+- Inventory Management
+- Scheduling & Planning
+- Asset Management (Advanced)
+- Work Order Management (Advanced)
+- Document Management
+- Meter Reading
+
+### Advanced Tier
+- Predictive Maintenance
+- Purchasing & Procurement
+- Advanced Analytics & BI
+- Safety & Compliance
+- Calibration Management
+- Failure Analysis
+- Project Management
+- Energy Management
+- Mobile Application (Advanced)
+
+### Premium Tier
+- Vendor Management
+- Audit & Quality
+- Integration Hub & API
+- Multi-tenancy Management
+- Advanced Workflow Engine
+- AI-Powered Optimization
+
+## 🗂️ Project Structure
+
+```
+backend/
+├── prisma/
+│   ├── schema.prisma          # Database schema
+│   ├── seed.ts                # Test data
+│   └── migrations/            # Database migrations
+├── src/
+│   ├── common/
+│   │   ├── constants/
+│   │   │   └── modules.constant.ts    # Module definitions
+│   │   ├── decorators/
+│   │   │   └── require-module.decorator.ts
+│   │   └── guards/
+│   │       └── module-access.guard.ts  # Module licensing guard
+│   ├── prisma/
+│   │   ├── prisma.module.ts
+│   │   └── prisma.service.ts
+│   ├── modules/
+│   │   └── module-licensing/
+│   │       ├── module-licensing.module.ts
+│   │       ├── module-licensing.service.ts
+│   │       └── module-licensing.controller.ts
+│   ├── app.module.ts
+│   └── main.ts
+└── package.json
+```
+
+## 🔄 Migration to Turso
+
+When ready for production:
+
+1. Sign up at [turso.tech](https://turso.tech)
+2. Create a database:
+   ```bash
+   turso db create cmms-prod
+   ```
+3. Get connection string:
+   ```bash
+   turso db show cmms-prod --url
+   ```
+4. Update `.env`:
+   ```
+   DATABASE_URL="libsql://your-db.turso.io?authToken=your-token"
+   ```
+5. Run migrations:
+   ```bash
+   npx prisma migrate deploy
+   ```
+
+## 📈 Next Steps
+
+1. ✅ Module licensing system implemented
+2. ⏳ Add authentication (JWT, Passport)
+3. ⏳ Implement remaining CMMS modules
+4. ⏳ Build superadmin UI
+5. ⏳ Create customer portal
+6. ⏳ Add payment integration
+
+## 🧪 Testing
 
 ```bash
-# development
-$ npm run start
+# Run tests
+npm test
 
-# watch mode
-$ npm run start:dev
+# Run e2e tests
+npm run test:e2e
 
-# production mode
-$ npm run start:prod
+# Test module access
+curl http://localhost:3000/module-licensing/organization/org-test-1/modules
 ```
 
-## Run tests
+## 📝 License
 
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
-# Trigger redeploy
+Proprietary - CMMS Module Licensing System
