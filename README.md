@@ -191,15 +191,6 @@ npm run test:ui
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📝 License
-
-This project is licensed under the MIT License.
-
-## 🙏 Acknowledgments
-
-Built with [Claude Code](https://claude.com/claude-code) - AI-powered development assistant.
-
 ---
 
 **Need help?** Open an issue or check the documentation files in the repository.
